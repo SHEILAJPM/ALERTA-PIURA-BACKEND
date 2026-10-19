@@ -24,7 +24,8 @@ async function describirContextoEnVivo() {
   });
 
   const lineasAlbergues = albergues.map(
-    (a) => `- ${a.nombre} (${a.direccion ?? "sin dirección registrada"}): ${a.ocupacion_actual}/${a.capacidad} ocupado`
+    (a) =>
+      `- ${a.nombre} (${a.direccion ?? "sin dirección registrada"}): ${a.ocupacion_actual}/${a.capacidad} ocupado`
   );
 
   return [

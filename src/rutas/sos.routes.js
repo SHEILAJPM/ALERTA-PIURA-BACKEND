@@ -16,54 +16,48 @@ const ROLES_SOS = ["administrador", "defensa_civil"];
 // Botón de pánico: no requiere sesión (mismo criterio que reportes_ciudadanos
 // -- una emergencia real no debería esperar un login). Se transmite por
 // WebSocket para que la Consola de Despacho lo muestre al instante.
-router.post(
-  "/",
-  autenticacionOpcional,
-  limitadorSOS,
-  validarBody(sosSchema),
-  async (req, res, next) => {
-    try {
-      const { nombre_contacto: nombreContacto, telefono_contacto: telefonoContacto, lon, lat } = req.body;
-      const usuarioId = req.usuario?.id ?? null;
-      let nombreMostrado = nombreContacto ?? null;
-      let telefonoMostrado = telefonoContacto ?? null;
-      if (usuarioId) {
-        // El JWT no trae teléfono (se emite liviano a propósito, ver
-        // generarToken en servicios/auth.js) -- sin esto, telefono_contacto
-        // quedaba siempre vacío para cualquier envío con sesión, sin importar
-        // lo que la cuenta tuviera guardado. Los datos de la cuenta pisan lo
-        // que haya venido en el body: son más confiables que texto libre.
-        const { rows: perfilRows } = await pool.query("SELECT nombre, telefono FROM usuarios WHERE id = $1", [
-          usuarioId,
-        ]);
-        // || (no ??): perfilSchema no exige mínimo de largo para teléfono
-        // (ver validacion/schemas.js), así que una cuenta con telefono = ''
-        // guardado no debería pisar un telefono_contacto real que sí vino en
-        // el body -- '' es tan "sin dato" como null acá.
-        nombreMostrado = perfilRows[0]?.nombre || nombreMostrado;
-        telefonoMostrado = perfilRows[0]?.telefono || telefonoMostrado;
-      }
+router.post("/", autenticacionOpcional, limitadorSOS, validarBody(sosSchema), async (req, res, next) => {
+  try {
+    const { nombre_contacto: nombreContacto, telefono_contacto: telefonoContacto, lon, lat } = req.body;
+    const usuarioId = req.usuario?.id ?? null;
+    let nombreMostrado = nombreContacto ?? null;
+    let telefonoMostrado = telefonoContacto ?? null;
+    if (usuarioId) {
+      // El JWT no trae teléfono (se emite liviano a propósito, ver
+      // generarToken en servicios/auth.js) -- sin esto, telefono_contacto
+      // quedaba siempre vacío para cualquier envío con sesión, sin importar
+      // lo que la cuenta tuviera guardado. Los datos de la cuenta pisan lo
+      // que haya venido en el body: son más confiables que texto libre.
+      const { rows: perfilRows } = await pool.query("SELECT nombre, telefono FROM usuarios WHERE id = $1", [
+        usuarioId,
+      ]);
+      // || (no ??): perfilSchema no exige mínimo de largo para teléfono
+      // (ver validacion/schemas.js), así que una cuenta con telefono = ''
+      // guardado no debería pisar un telefono_contacto real que sí vino en
+      // el body -- '' es tan "sin dato" como null acá.
+      nombreMostrado = perfilRows[0]?.nombre || nombreMostrado;
+      telefonoMostrado = perfilRows[0]?.telefono || telefonoMostrado;
+    }
 
-      const { rows } = await pool.query(
-        `INSERT INTO alertas_sos (usuario_id, nombre_contacto, telefono_contacto, ubicacion)
+    const { rows } = await pool.query(
+      `INSERT INTO alertas_sos (usuario_id, nombre_contacto, telefono_contacto, ubicacion)
          VALUES ($1, $2, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326))
          RETURNING id, estado, creado_en`,
-        [usuarioId, nombreMostrado, telefonoMostrado, lon, lat]
-      );
+      [usuarioId, nombreMostrado, telefonoMostrado, lon, lat]
+    );
 
-      const alerta = {
-        ...rows[0],
-        nombre_contacto: nombreMostrado,
-        telefono_contacto: telefonoMostrado,
-        ubicacion: { type: "Point", coordinates: [lon, lat] },
-      };
-      transmitirRestringido("alerta_sos", alerta, ROLES_SOS);
-      res.status(201).json(alerta);
-    } catch (err) {
-      next(err);
-    }
+    const alerta = {
+      ...rows[0],
+      nombre_contacto: nombreMostrado,
+      telefono_contacto: telefonoMostrado,
+      ubicacion: { type: "Point", coordinates: [lon, lat] },
+    };
+    transmitirRestringido("alerta_sos", alerta, ROLES_SOS);
+    res.status(201).json(alerta);
+  } catch (err) {
+    next(err);
   }
-);
+});
 
 // Panel de Defensa Civil/admin: solo lo pendiente por defecto (para que la
 // consola de despacho no se llene de casos ya resueltos), con lo más

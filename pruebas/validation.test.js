@@ -71,7 +71,11 @@ test("reporteSchema: requiere foto_url", () => {
 });
 
 test("reporteSchema: lon y lat deben ir juntos", () => {
-  const resultado = reporteSchema.safeParse({ descripcion: "Calle inundada", foto_url: FOTO_URL, lon: -80.6 });
+  const resultado = reporteSchema.safeParse({
+    descripcion: "Calle inundada",
+    foto_url: FOTO_URL,
+    lon: -80.6,
+  });
   assert.equal(resultado.success, false);
 });
 

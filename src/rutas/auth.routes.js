@@ -15,7 +15,11 @@ import {
 import { requerirSesion } from "../intermediarios/auth.js";
 import { limitadorLogin } from "../intermediarios/rateLimit.js";
 import { hashearPassword, verificarPassword, generarToken } from "../servicios/auth.js";
-import { enviarCorreoRecuperacion, enviarCorreoVerificacion, enviarCorreoCodigo2FA } from "../servicios/email.js";
+import {
+  enviarCorreoRecuperacion,
+  enviarCorreoVerificacion,
+  enviarCorreoCodigo2FA,
+} from "../servicios/email.js";
 
 // Roles operativos: manejan datos sensibles y pueden difundir alertas
 // masivas, por eso llevan un segundo paso de verificación al iniciar sesión
@@ -138,7 +142,12 @@ router.post("/verificar-2fa", limitadorLogin, validarBody(login2FASchema), async
     }
 
     await pool.query("UPDATE verificaciones_2fa SET usado_en = now() WHERE id = $1", [referencia]);
-    const usuarioPublico = { id: rows[0].usuario_id, nombre: rows[0].nombre, correo: rows[0].correo, rol: rows[0].rol };
+    const usuarioPublico = {
+      id: rows[0].usuario_id,
+      nombre: rows[0].nombre,
+      correo: rows[0].correo,
+      rol: rows[0].rol,
+    };
     res.json({ token: generarToken(usuarioPublico), usuario: usuarioPublico });
   } catch (err) {
     next(err);

@@ -85,7 +85,11 @@ test("analizarReporte: cuando hay fotoUrl, la manda como image_url en el mensaje
 
   const contenido = cuerpoEnviado.messages[1].content;
   assert.ok(Array.isArray(contenido));
-  assert.ok(contenido.some((parte) => parte.type === "image_url" && parte.image_url.url === "https://example.com/foto.jpg"));
+  assert.ok(
+    contenido.some(
+      (parte) => parte.type === "image_url" && parte.image_url.url === "https://example.com/foto.jpg"
+    )
+  );
 });
 
 test("analizarReporte: si la API responde con error HTTP, falla abierto (null)", async (t) => {

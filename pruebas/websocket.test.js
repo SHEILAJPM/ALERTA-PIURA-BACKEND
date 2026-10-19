@@ -2,7 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { WebSocket } from "ws";
-import { iniciarWebSocket, cerrarWebSocket, transmitir, transmitirRestringido } from "../src/servicios/websocket.js";
+import {
+  iniciarWebSocket,
+  cerrarWebSocket,
+  transmitir,
+  transmitirRestringido,
+} from "../src/servicios/websocket.js";
 import { generarToken } from "../src/servicios/auth.js";
 
 function levantarServidor() {

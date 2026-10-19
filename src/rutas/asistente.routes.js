@@ -10,15 +10,20 @@ const router = Router();
 
 // Público, sin sesión: cualquier visitante (con o sin cuenta) puede tener
 // una duda antes de decidir reportar algo o buscar un albergue.
-router.post("/preguntar", limitadorAsistente, validarBody(preguntaAsistenteSchema), async (req, res, next) => {
-  try {
-    const { pregunta, historial } = req.body;
-    const respuesta = await responderPregunta({ pregunta, historial });
-    res.json({ respuesta });
-  } catch (err) {
-    next(err);
+router.post(
+  "/preguntar",
+  limitadorAsistente,
+  validarBody(preguntaAsistenteSchema),
+  async (req, res, next) => {
+    try {
+      const { pregunta, historial } = req.body;
+      const respuesta = await responderPregunta({ pregunta, historial });
+      res.json({ respuesta });
+    } catch (err) {
+      next(err);
+    }
   }
-});
+);
 
 router.post(
   "/feedback",
@@ -27,10 +32,11 @@ router.post(
   async (req, res, next) => {
     try {
       const { pregunta, respuesta, util } = req.body;
-      await pool.query(
-        "INSERT INTO asistente_feedback (pregunta, respuesta, util) VALUES ($1, $2, $3)",
-        [pregunta, respuesta, util]
-      );
+      await pool.query("INSERT INTO asistente_feedback (pregunta, respuesta, util) VALUES ($1, $2, $3)", [
+        pregunta,
+        respuesta,
+        util,
+      ]);
       res.status(201).json({ ok: true });
     } catch (err) {
       next(err);

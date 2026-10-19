@@ -5,7 +5,12 @@ import { limitadorEscrituraPublica } from "../intermediarios/rateLimit.js";
 import { transmitirRestringido } from "../servicios/websocket.js";
 import { crearReclamoSeguroSchema, revisarReclamoSeguroSchema } from "../validacion/schemas.js";
 import { TOPES_INDEMNIZACION_CENTAVOS } from "../servicios/pagos.js";
-import { crearReclamo, listarReclamosUsuario, listarReclamosAdmin, revisarReclamo } from "../servicios/reclamosSeguro.js";
+import {
+  crearReclamo,
+  listarReclamosUsuario,
+  listarReclamosAdmin,
+  revisarReclamo,
+} from "../servicios/reclamosSeguro.js";
 
 const router = Router();
 
