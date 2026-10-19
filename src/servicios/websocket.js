@@ -1,5 +1,6 @@
 import { WebSocketServer } from "ws";
 import { verificarToken } from "./auth.js";
+import { ipCliente } from "../utilidades/proxy.js";
 
 let wss = null;
 
@@ -8,10 +9,6 @@ let wss = null;
 // agotar el servidor con miles de sockets abiertos es un tope por origen.
 const MAX_CONEXIONES_POR_IP = 20;
 const conexionesPorIp = new Map();
-
-function ipDe(request) {
-  return request.socket.remoteAddress ?? "desconocida";
-}
 
 // Recibe el servidor HTTP ya escuchando (server.js) y adjunta el WebSocket
 // sobre el mismo puerto vía upgrade, en vez de abrir un puerto aparte: así el
@@ -28,7 +25,7 @@ const TAMAÑO_MAXIMO_MENSAJE_BYTES = 4096;
 export function iniciarWebSocket(server) {
   wss = new WebSocketServer({ server, maxPayload: TAMAÑO_MAXIMO_MENSAJE_BYTES });
   wss.on("connection", (socket, request) => {
-    const ip = ipDe(request);
+    const ip = ipCliente(request);
     const actuales = conexionesPorIp.get(ip) ?? 0;
     if (actuales >= MAX_CONEXIONES_POR_IP) {
       socket.close(1013, "Demasiadas conexiones desde este origen");

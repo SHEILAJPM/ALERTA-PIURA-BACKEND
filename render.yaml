@@ -12,6 +12,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Render pone un proxy delante: ver src/utilidades/proxy.js.
+      - key: TRUST_PROXY
+        value: "1"
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
