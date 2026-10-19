@@ -127,7 +127,7 @@ npm run db:seed
 Esto crea un sensor, 4 albergues, 3 zonas de riesgo y una cuenta por cada rol:
 
 | Correo                        | Rol                  | Contraseña |
-| ------------------------------ | -------------------- | ---------- |
+| ----------------------------- | -------------------- | ---------- |
 | `operario@piuraalerta.pe`     | Operador técnico     | `demo1234` |
 | `defensacivil@piuraalerta.pe` | Defensa Civil / COER | `demo1234` |
 | `admin@piuraalerta.pe`        | Administrador        | `demo1234` |
@@ -163,34 +163,35 @@ Corre con el test runner que ya trae Node, sin librerías extra. Prueba la lógi
 
 ## La API
 
-| Método | Ruta                                               | Qué hace                                                                                                          |
-| ------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| GET    | `/health`                                           | Dice si el servidor y la base de datos están funcionando                                                          |
-| GET    | `/api/sensores`                                     | Lista de sensores registrados                                                                                     |
-| GET    | `/api/lecturas?sensor=&minutos=`                    | Historial de mediciones (por defecto, últimos 180 minutos)                                                        |
-| GET    | `/api/lecturas/ultima?sensor=`                      | Última medición y una predicción de cuánto puede tardar en crecer el río                                          |
-| POST   | `/api/lecturas` 🔒⏱                                 | Registra una medición nueva. La usan el simulador y el ESP32                                                      |
-| GET    | `/api/albergues`                                    | Lista de albergues activos                                                                                        |
-| POST   | `/api/albergues` ⏱                                  | Crea un albergue nuevo                                                                                            |
-| PATCH  | `/api/albergues/:id/ocupacion` ⏱                    | Actualiza cuánta gente hay en un albergue                                                                         |
-| GET    | `/api/zonas-riesgo`                                 | Las zonas de riesgo para dibujar en el mapa                                                                       |
-| GET    | `/api/reportes-ciudadanos?limite=&conFoto=&antes=`  | El feed de reportes, del más nuevo al más viejo                                                                   |
-| POST   | `/api/reportes-ciudadanos` ⏱                        | Crea un reporte nuevo. No hace falta tener cuenta                                                                 |
-| POST   | `/api/reportes-ciudadanos/:id/like` 🔑⏱             | Le da o le quita like a un reporte (sí necesita cuenta)                                                           |
-| POST   | `/api/auth/registro`                                | Crea una cuenta nueva                                                                                              |
-| POST   | `/api/auth/login` ⏱                                 | Inicia sesión (máximo 10 intentos cada 15 minutos por IP)                                                         |
-| GET    | `/api/auth/yo` 🔑                                   | El perfil completo del usuario que inició sesión                                                                  |
-| PATCH  | `/api/auth/yo` 🔑                                   | Actualiza los datos del usuario que inició sesión                                                                 |
-| PATCH  | `/api/auth/contrasena` 🔑                           | Cambia la contraseña                                                                                               |
-| POST   | `/api/auth/olvide-password` ⏱                       | Manda un correo para recuperar la contraseña, si la cuenta existe                                                 |
-| POST   | `/api/auth/restablecer-password` ⏱                  | Cambia la contraseña usando el link del correo (dura 1 hora y se usa una sola vez)                                |
-| GET    | `/api/push/clave-publica`                           | La clave para poder suscribirse a notificaciones push                                                             |
-| POST   | `/api/push/suscribir` ⏱                             | Guarda una suscripción a notificaciones push                                                                      |
-| POST   | `/api/push/desuscribir` ⏱                           | Borra una suscripción a notificaciones push                                                                       |
-| GET    | `/api/alertas/historial?limite=`                    | El historial público de cambios de estado del río                                                                 |
+| Método | Ruta                                               | Qué hace                                                                           |
+| ------ | -------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| GET    | `/health`                                          | Dice si el servidor y la base de datos están funcionando                           |
+| GET    | `/api/sensores`                                    | Lista de sensores registrados                                                      |
+| GET    | `/api/lecturas?sensor=&minutos=`                   | Historial de mediciones (por defecto, últimos 180 minutos)                         |
+| GET    | `/api/lecturas/ultima?sensor=`                     | Última medición y una predicción de cuánto puede tardar en crecer el río           |
+| POST   | `/api/lecturas` 🔒⏱                                | Registra una medición nueva. La usan el simulador y el ESP32                       |
+| GET    | `/api/albergues`                                   | Lista de albergues activos                                                         |
+| POST   | `/api/albergues` 👷⏱                               | Crea un albergue nuevo                                                             |
+| PATCH  | `/api/albergues/:id/ocupacion` 👷⏱                 | Actualiza cuánta gente hay en un albergue                                          |
+| GET    | `/api/zonas-riesgo`                                | Las zonas de riesgo para dibujar en el mapa                                        |
+| GET    | `/api/reportes-ciudadanos?limite=&conFoto=&antes=` | El feed de reportes, del más nuevo al más viejo                                    |
+| POST   | `/api/reportes-ciudadanos` ⏱                       | Crea un reporte nuevo. No hace falta tener cuenta                                  |
+| POST   | `/api/reportes-ciudadanos/:id/like` 🔑⏱            | Le da o le quita like a un reporte (sí necesita cuenta)                            |
+| POST   | `/api/auth/registro`                               | Crea una cuenta nueva                                                              |
+| POST   | `/api/auth/login` ⏱                                | Inicia sesión (máximo 10 intentos cada 15 minutos por IP)                          |
+| GET    | `/api/auth/yo` 🔑                                  | El perfil completo del usuario que inició sesión                                   |
+| PATCH  | `/api/auth/yo` 🔑                                  | Actualiza los datos del usuario que inició sesión                                  |
+| PATCH  | `/api/auth/contrasena` 🔑                          | Cambia la contraseña                                                               |
+| POST   | `/api/auth/olvide-password` ⏱                      | Manda un correo para recuperar la contraseña, si la cuenta existe                  |
+| POST   | `/api/auth/restablecer-password` ⏱                 | Cambia la contraseña usando el link del correo (dura 1 hora y se usa una sola vez) |
+| GET    | `/api/push/clave-publica`                          | La clave para poder suscribirse a notificaciones push                              |
+| POST   | `/api/push/suscribir` ⏱                            | Guarda una suscripción a notificaciones push                                       |
+| POST   | `/api/push/desuscribir` ⏱                          | Borra una suscripción a notificaciones push                                        |
+| GET    | `/api/alertas/historial?limite=`                   | El historial público de cambios de estado del río                                  |
 
 - 🔒 = necesita el header `x-api-key` si configuraste `SENSOR_API_KEY`.
 - 🔑 = necesita haber iniciado sesión.
+- 👷 = necesita sesión con rol de operario, Defensa Civil o administrador.
 - ⏱ = tiene límite de cuántas veces se puede llamar seguido.
 
 Todos los POST y PATCH revisan que los datos vengan bien antes de tocar la base de datos (tipos correctos, coordenadas válidas, niveles que tengan sentido, etc).
