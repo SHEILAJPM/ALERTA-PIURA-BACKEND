@@ -118,7 +118,14 @@ export async function revisarReclamo({
          motivo_rechazo = $4, revisado_por = $5, revisado_en = now()
      WHERE id = $1 AND estado = ANY($6)
      RETURNING *`,
-    [id, estado, montoAprobadoCentavos ?? null, motivoRechazo ?? null, revisorId, ORIGENES_VALIDOS[estado] ?? []]
+    [
+      id,
+      estado,
+      montoAprobadoCentavos ?? null,
+      motivoRechazo ?? null,
+      revisorId,
+      ORIGENES_VALIDOS[estado] ?? [],
+    ]
   );
 
   if (rows.length === 0) {

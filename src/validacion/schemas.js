@@ -273,4 +273,3 @@ export const login2FASchema = z.object({
     .trim()
     .regex(/^\d{6}$/, "debe tener 6 dígitos"),
 });
-

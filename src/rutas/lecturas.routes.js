@@ -80,7 +80,9 @@ router.post(
           await recordarSeguridad(
             "🔴 Sigue la alerta roja. Si estás bien, márcalo en la app con el botón 'Estoy a salvo'. Si ves a alguien en peligro, usa el botón de SOS."
           );
-          await recordarSeguridadPush("Recuerda marcar 'Estoy a salvo' en la app mientras dure la alerta roja.");
+          await recordarSeguridadPush(
+            "Recuerda marcar 'Estoy a salvo' en la app mientras dure la alerta roja."
+          );
         }
       }
 

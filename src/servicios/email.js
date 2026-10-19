@@ -58,7 +58,9 @@ export function iniciarEmail() {
   }
 
   if (!apiKey && !transportadorGmail) {
-    logger.warn("BREVO_API_KEY/GMAIL_* no configurados: los correos (recuperación, avisos) quedan desactivados.");
+    logger.warn(
+      "BREVO_API_KEY/GMAIL_* no configurados: los correos (recuperación, avisos) quedan desactivados."
+    );
   }
 }
 

@@ -106,7 +106,11 @@ router.post(
       const idxSpam = params.length + 1;
       const idxMotivo = params.length + 2;
       const idxEstado = params.length + 3;
-      params.push(analisis?.es_sospechoso ?? null, analisis?.motivo ?? null, archivadoPorIA ? "descartado" : "pendiente");
+      params.push(
+        analisis?.es_sospechoso ?? null,
+        analisis?.motivo ?? null,
+        archivadoPorIA ? "descartado" : "pendiente"
+      );
 
       const { rows } = await pool.query(
         `INSERT INTO reportes_ciudadanos (usuario_id, autor_nombre, descripcion, foto_url, ubicacion, posible_spam, motivo_ia, estado)
