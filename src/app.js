@@ -4,6 +4,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { pool } from "../bd/pool.js";
 import { logger } from "./utilidades/logger.js";
+import { saltosProxy } from "./utilidades/proxy.js";
 import sensoresRouter from "./rutas/sensores.routes.js";
 import lecturasRouter from "./rutas/lecturas.routes.js";
 import alberguesRouter from "./rutas/albergues.routes.js";
@@ -39,6 +40,11 @@ if (!origenesPermitidos?.length) {
     "CORS_ORIGIN no configurado: se acepta cualquier origen. Configúralo antes de exponer el backend en producción."
   );
 }
+
+// Ver utilidades/proxy.js: sin esto, detrás de Render req.ip es la IP del
+// proxy y los rate limits quedan compartidos entre todos los usuarios.
+const saltos = saltosProxy();
+if (saltos > 0) app.set("trust proxy", saltos);
 
 app.use(helmet());
 app.use(cors(origenesPermitidos?.length ? { origin: origenesPermitidos } : undefined));
