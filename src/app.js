@@ -102,4 +102,10 @@ app.use("/api/impacto", impactoRouter);
 app.use("/api/sos", sosRouter);
 app.use("/api/configuracion", configuracionRouter);
 
+// Sin esto Express responde un HTML "Cannot GET ..." y el frontend, que
+// siempre espera { error }, no puede mostrar el mensaje.
+app.use((req, res) => {
+  res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.path}` });
+});
+
 app.use(manejadorErrores);
