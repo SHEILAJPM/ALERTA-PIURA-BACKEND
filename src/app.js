@@ -76,7 +76,10 @@ app.get("/health", async (_req, res) => {
     await pool.query("SELECT 1");
     res.json({ estado: "ok", db: "conectada" });
   } catch (err) {
-    res.status(503).json({ estado: "error", db: err.message });
+    // /health es público: el detalle (host, usuario de la base) queda solo en
+    // el log, igual que hace manejadorErrores con los 500.
+    logger.error({ err }, "Health check: la base de datos no responde");
+    res.status(503).json({ estado: "error", db: "no disponible" });
   }
 });
 
