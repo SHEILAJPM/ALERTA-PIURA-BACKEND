@@ -76,7 +76,10 @@ app.get("/health", async (_req, res) => {
     await pool.query("SELECT 1");
     res.json({ estado: "ok", db: "conectada" });
   } catch (err) {
-    res.status(503).json({ estado: "error", db: err.message });
+    // /health es público: el detalle (host, usuario de la base) queda solo en
+    // el log, igual que hace manejadorErrores con los 500.
+    logger.error({ err }, "Health check: la base de datos no responde");
+    res.status(503).json({ estado: "error", db: "no disponible" });
   }
 });
 
@@ -98,5 +101,11 @@ app.use("/api/chequeos-seguridad", chequeosRouter);
 app.use("/api/impacto", impactoRouter);
 app.use("/api/sos", sosRouter);
 app.use("/api/configuracion", configuracionRouter);
+
+// Sin esto Express responde un HTML "Cannot GET ..." y el frontend, que
+// siempre espera { error }, no puede mostrar el mensaje.
+app.use((req, res) => {
+  res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.path}` });
+});
 
 app.use(manejadorErrores);

@@ -47,17 +47,20 @@ async function manejarLinea(linea, sensorCodigo) {
   }
 }
 
-function parsearNivel(linea) {
+// Mismo rango que lecturaSchema (POST /api/lecturas): un sensor desconectado
+// o con ruido manda negativos o picos absurdos, y no deben disparar alertas.
+const NIVEL_MIN_CM = 0;
+const NIVEL_MAX_CM = 2000;
+
+export function parsearNivel(linea) {
   const texto = linea.trim();
   if (!texto) return null;
 
   const comoJson = intentarParsearJson(texto);
-  if (comoJson && typeof comoJson.nivel_cm === "number" && Number.isFinite(comoJson.nivel_cm)) {
-    return comoJson.nivel_cm;
-  }
+  const nivel = comoJson && typeof comoJson.nivel_cm === "number" ? comoJson.nivel_cm : Number(texto);
 
-  const comoNumero = Number(texto);
-  return Number.isFinite(comoNumero) ? comoNumero : null;
+  if (!Number.isFinite(nivel) || nivel < NIVEL_MIN_CM || nivel > NIVEL_MAX_CM) return null;
+  return nivel;
 }
 
 function intentarParsearJson(texto) {
