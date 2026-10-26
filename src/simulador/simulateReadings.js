@@ -1,10 +1,5 @@
 import "dotenv/config";
 
-// Sustituye al ESP32 mientras no está conectado por SerialPort: envía
-// lecturas por HTTP al mismo endpoint que usará el hardware real
-// (POST /api/lecturas), para poder probar todo el pipeline
-// (alertEngine -> WebSocket -> Telegram) de punta a punta.
-
 const PORT = process.env.PORT ?? 4000;
 const URL_LECTURAS = `http://localhost:${PORT}/api/lecturas`;
 const SENSOR_CODIGO = process.env.SIM_SENSOR_CODIGO ?? "RIO-PIURA-01";
