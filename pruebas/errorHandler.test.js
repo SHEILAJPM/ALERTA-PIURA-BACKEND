@@ -30,3 +30,11 @@ test("manejadorErrores: enmascara errores inesperados con mensaje genérico", ()
   assert.equal(res.statusCode, 500);
   assert.deepEqual(res.body, { error: "Error interno del servidor" });
 });
+
+test("manejadorErrores: responde 400 cuando Postgres rechaza un id mal formado", () => {
+  const res = crearResFalso();
+  const error = Object.assign(new Error('invalid input syntax for type uuid: "abc"'), { code: "22P02" });
+  manejadorErrores(error, {}, res, () => {});
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(res.body, { error: "Identificador con formato inválido" });
+});
