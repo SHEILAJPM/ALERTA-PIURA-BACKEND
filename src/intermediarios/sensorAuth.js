@@ -1,4 +1,13 @@
+import { timingSafeEqual } from "node:crypto";
 import { logger } from "../utilidades/logger.js";
+
+// Comparación en tiempo constante: con !== el tiempo de respuesta delata
+// cuántos caracteres del inicio coinciden y permite adivinar la key de a poco.
+function keysIguales(recibida, esperada) {
+  const a = Buffer.from(recibida ?? "");
+  const b = Buffer.from(esperada);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 // Protege el endpoint de ingesta (POST /api/lecturas) con una API key
 // compartida, para que no cualquiera pueda inyectar lecturas falsas y
@@ -11,7 +20,7 @@ export function requerirApiKeySensor(req, res, next) {
   const apiKey = process.env.SENSOR_API_KEY;
   if (!apiKey) return next();
 
-  if (req.get("x-api-key") !== apiKey) {
+  if (!keysIguales(req.get("x-api-key"), apiKey)) {
     return res.status(401).json({ error: "API key de sensor inválida o ausente" });
   }
   next();

@@ -2,7 +2,7 @@ import { SerialPort } from "serialport";
 import { ReadlineParser } from "@serialport/parser-readline";
 import { procesarLectura } from "./alertEngine.js";
 import { transmitir } from "./websocket.js";
-import { notificarCambioEstado } from "./telegram.js";
+import { avisarCambioEstado } from "./avisos.js";
 import { logger } from "../utilidades/logger.js";
 
 // Ingesta real del ESP32: el firmware escribe una línea de texto por lectura
@@ -40,7 +40,7 @@ async function manejarLinea(linea, sensorCodigo) {
     transmitir("lectura", lectura);
     if (evento) {
       transmitir("evento_alerta", evento);
-      await notificarCambioEstado(evento);
+      await avisarCambioEstado(evento);
     }
   } catch (err) {
     logger.error({ err }, "[serial] error procesando lectura");

@@ -3,9 +3,7 @@ import { pool } from "../../bd/pool.js";
 import { procesarLectura } from "../servicios/alertEngine.js";
 import { estimarTiempoCrecida } from "../servicios/prediccion.js";
 import { transmitir } from "../servicios/websocket.js";
-import { notificarCambioEstado, recordarSeguridad } from "../servicios/telegram.js";
-import { notificarCambioEstadoPush, recordarSeguridadPush } from "../servicios/webpush.js";
-import { notificarCambioEstadoSMS } from "../servicios/sms.js";
+import { avisarCambioEstado } from "../servicios/avisos.js";
 import { validarBody } from "../intermediarios/validate.js";
 import { lecturaSchema } from "../validacion/schemas.js";
 import { limitadorLecturas } from "../intermediarios/rateLimit.js";
@@ -38,7 +36,9 @@ router.get("/ultima", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const sensorCodigo = req.query.sensor ?? SENSOR_POR_DEFECTO;
-    const minutos = Number(req.query.minutos ?? 180);
+    // Acotado entre 1 minuto y 7 días: sin esto, ?minutos=abc terminaba en un
+    // intervalo 'NaN minutes' (500) y un número enorme volcaba la tabla entera.
+    const minutos = Math.min(Math.max(Number(req.query.minutos) || 180, 1), 7 * 24 * 60);
     const { rows } = await pool.query(
       `SELECT l.nivel_cm, l.porcentaje, l.estado, l.medido_en
        FROM lecturas l JOIN sensores s ON s.id = l.sensor_id
@@ -69,21 +69,7 @@ router.post(
 
       if (evento) {
         transmitir("evento_alerta", evento);
-        await notificarCambioEstado(evento);
-        await notificarCambioEstadoPush(evento);
-        await notificarCambioEstadoSMS(evento);
-
-        // Recordatorio de "estoy a salvo" (ver chequeos.routes.js): solo al
-        // ENTRAR en alerta roja, no en cada lectura mientras dure -- un
-        // recordatorio repetido cada pocos segundos sería spam, no ayuda.
-        if (evento.estado_nuevo === "alerta_roja") {
-          await recordarSeguridad(
-            "🔴 Sigue la alerta roja. Si estás bien, márcalo en la app con el botón 'Estoy a salvo'. Si ves a alguien en peligro, usa el botón de SOS."
-          );
-          await recordarSeguridadPush(
-            "Recuerda marcar 'Estoy a salvo' en la app mientras dure la alerta roja."
-          );
-        }
+        await avisarCambioEstado(evento);
       }
 
       res.status(201).json({ lectura, evento });

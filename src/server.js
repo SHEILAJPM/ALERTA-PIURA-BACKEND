@@ -55,7 +55,7 @@ let apagando = false;
 async function apagar(señal) {
   if (apagando) return;
   apagando = true;
-  console.log(`\n${señal} recibido, cerrando ordenadamente...`);
+  logger.info(`${señal} recibido, cerrando ordenadamente...`);
 
   tareaCron.stop();
   tareaCronAvisos.stop();
@@ -65,7 +65,7 @@ async function apagar(señal) {
 
   server.close(async () => {
     await pool.end();
-    console.log("Apagado completo.");
+    logger.info("Apagado completo.");
     process.exit(0);
   });
 

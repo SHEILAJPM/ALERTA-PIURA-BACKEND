@@ -138,9 +138,11 @@ router.post(
   }
 );
 
-// Toggle: si el usuario ya le dio like, lo quita; si no, lo agrega. Insert/delete
-// del like y el contador denormalizado van en la misma transacción para que
-// nunca queden desincronizados.
+// Toggle compartido por /like y /confirmar: si el usuario ya había marcado el
+// reporte, se quita la marca; si no, se agrega. Insert/delete y el contador
+// denormalizado van en la misma transacción para que nunca queden
+// desincronizados. `tabla` y `contador` vienen siempre de las llamadas de
+// abajo (nunca del request), por eso es seguro interpolarlos en el SQL.
 //
 // El delta se calcula del rowCount real de la insert/delete, no de la lectura
 // SELECT de arriba: dos clicks casi simultáneos (o un doble-tap) pueden leer
@@ -149,126 +151,91 @@ router.post(
 // usuario_id) y tira un 500 en vez de simplemente no sumar dos veces.
 // ON CONFLICT DO NOTHING lo vuelve un no-op silencioso, y el rowCount (0 o 1)
 // dice si esta request en particular fue la que realmente cambió algo.
-router.post("/:id/like", requerirSesion, limitadorEscrituraPublica, async (req, res, next) => {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
+function alternarMarca({ tabla, contador, campoRespuesta }) {
+  return async (req, res, next) => {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
 
-    // Sin este lock, un like seguido de un unlike de verdad (dos requests
-    // distintas, no un doble-click de la misma) pueden pisarse: las dos
-    // transacciones leen "no existe" antes de que cualquiera confirme su
-    // escritura, y el toggle que debía cancelarse termina sumando en vez de
-    // anularse. pg_advisory_xact_lock serializa nada más que esta combinación
-    // puntual de reporte+usuario -- otros usuarios y otros reportes siguen
-    // sin bloquearse entre sí -- y se libera solo al terminar la transacción.
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1 || ':' || $2))", [
-      req.params.id,
-      req.usuario.id,
-    ]);
+      // Sin este lock, una marca seguida de un desmarcar de verdad (dos
+      // requests distintas, no un doble-click de la misma) pueden pisarse: las
+      // dos transacciones leen "no existe" antes de que cualquiera confirme su
+      // escritura, y el toggle que debía cancelarse termina sumando en vez de
+      // anularse. pg_advisory_xact_lock serializa nada más que esta
+      // combinación puntual de reporte+usuario -- otros usuarios y otros
+      // reportes siguen sin bloquearse entre sí -- y se libera solo al
+      // terminar la transacción.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1 || ':' || $2))", [
+        req.params.id,
+        req.usuario.id,
+      ]);
 
-    const { rows: existentes } = await client.query(
-      "SELECT 1 FROM reportes_likes WHERE reporte_id = $1 AND usuario_id = $2",
-      [req.params.id, req.usuario.id]
-    );
-
-    const yaLeGustaba = existentes.length > 0;
-    let delta = 0;
-    if (yaLeGustaba) {
-      const resultado = await client.query(
-        "DELETE FROM reportes_likes WHERE reporte_id = $1 AND usuario_id = $2",
+      const { rows: existentes } = await client.query(
+        `SELECT 1 FROM ${tabla} WHERE reporte_id = $1 AND usuario_id = $2`,
         [req.params.id, req.usuario.id]
       );
-      if (resultado.rowCount > 0) delta = -1;
-    } else {
-      const resultado = await client.query(
-        "INSERT INTO reportes_likes (reporte_id, usuario_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-        [req.params.id, req.usuario.id]
+
+      const yaMarcado = existentes.length > 0;
+      let delta = 0;
+      if (yaMarcado) {
+        const resultado = await client.query(
+          `DELETE FROM ${tabla} WHERE reporte_id = $1 AND usuario_id = $2`,
+          [req.params.id, req.usuario.id]
+        );
+        if (resultado.rowCount > 0) delta = -1;
+      } else {
+        const resultado = await client.query(
+          `INSERT INTO ${tabla} (reporte_id, usuario_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [req.params.id, req.usuario.id]
+        );
+        if (resultado.rowCount > 0) delta = 1;
+      }
+
+      const { rows } = await client.query(
+        `UPDATE reportes_ciudadanos
+         SET ${contador} = ${contador} + $2
+         WHERE id = $1
+         RETURNING id, ${contador}`,
+        [req.params.id, delta]
       );
-      if (resultado.rowCount > 0) delta = 1;
-    }
 
-    const { rows } = await client.query(
-      `UPDATE reportes_ciudadanos
-       SET likes_count = likes_count + $2
-       WHERE id = $1
-       RETURNING id, likes_count`,
-      [req.params.id, delta]
-    );
+      if (rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Reporte no encontrado" });
+      }
 
-    if (rows.length === 0) {
+      await client.query("COMMIT");
+      res.json({ ...rows[0], [campoRespuesta]: !yaMarcado });
+    } catch (err) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Reporte no encontrado" });
+      next(err);
+    } finally {
+      client.release();
     }
+  };
+}
 
-    await client.query("COMMIT");
-    res.json({ ...rows[0], te_gusta: !yaLeGustaba });
-  } catch (err) {
-    await client.query("ROLLBACK");
-    next(err);
-  } finally {
-    client.release();
-  }
-});
+router.post(
+  "/:id/like",
+  requerirSesion,
+  limitadorEscrituraPublica,
+  alternarMarca({ tabla: "reportes_likes", contador: "likes_count", campoRespuesta: "te_gusta" })
+);
 
 // Verificación comunitaria: aparte del like (aprecio), esto es "confirmo que
 // esto es real" -- una señal más para que el admin priorice qué revisar
 // primero (ver ReporteModeracion en el panel), sin reemplazar la moderación
 // humana ni la de la IA.
-router.post("/:id/confirmar", requerirSesion, limitadorEscrituraPublica, async (req, res, next) => {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-
-    // Mismo motivo que en /like (ver ese comentario): serializa solo esta
-    // combinación puntual de reporte+usuario.
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1 || ':' || $2))", [
-      req.params.id,
-      req.usuario.id,
-    ]);
-
-    const { rows: existentes } = await client.query(
-      "SELECT 1 FROM reportes_confirmaciones WHERE reporte_id = $1 AND usuario_id = $2",
-      [req.params.id, req.usuario.id]
-    );
-
-    const yaConfirmaba = existentes.length > 0;
-    let delta = 0;
-    if (yaConfirmaba) {
-      const resultado = await client.query(
-        "DELETE FROM reportes_confirmaciones WHERE reporte_id = $1 AND usuario_id = $2",
-        [req.params.id, req.usuario.id]
-      );
-      if (resultado.rowCount > 0) delta = -1;
-    } else {
-      const resultado = await client.query(
-        "INSERT INTO reportes_confirmaciones (reporte_id, usuario_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-        [req.params.id, req.usuario.id]
-      );
-      if (resultado.rowCount > 0) delta = 1;
-    }
-
-    const { rows } = await client.query(
-      `UPDATE reportes_ciudadanos
-       SET confirmaciones_count = confirmaciones_count + $2
-       WHERE id = $1
-       RETURNING id, confirmaciones_count`,
-      [req.params.id, delta]
-    );
-
-    if (rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Reporte no encontrado" });
-    }
-
-    await client.query("COMMIT");
-    res.json({ ...rows[0], tu_confirmaste: !yaConfirmaba });
-  } catch (err) {
-    await client.query("ROLLBACK");
-    next(err);
-  } finally {
-    client.release();
-  }
-});
+router.post(
+  "/:id/confirmar",
+  requerirSesion,
+  limitadorEscrituraPublica,
+  alternarMarca({
+    tabla: "reportes_confirmaciones",
+    contador: "confirmaciones_count",
+    campoRespuesta: "tu_confirmaste",
+  })
+);
 
 // Moderación: solo roles no públicos pueden cambiar el estado de un reporte
 // (ver rol en bd/schema.sql). El registro público nunca crea estos roles.
