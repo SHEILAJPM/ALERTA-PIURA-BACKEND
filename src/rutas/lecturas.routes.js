@@ -38,7 +38,9 @@ router.get("/ultima", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const sensorCodigo = req.query.sensor ?? SENSOR_POR_DEFECTO;
-    const minutos = Number(req.query.minutos ?? 180);
+    // Acotado entre 1 minuto y 7 días: sin esto, ?minutos=abc terminaba en un
+    // intervalo 'NaN minutes' (500) y un número enorme volcaba la tabla entera.
+    const minutos = Math.min(Math.max(Number(req.query.minutos) || 180, 1), 7 * 24 * 60);
     const { rows } = await pool.query(
       `SELECT l.nivel_cm, l.porcentaje, l.estado, l.medido_en
        FROM lecturas l JOIN sensores s ON s.id = l.sensor_id
