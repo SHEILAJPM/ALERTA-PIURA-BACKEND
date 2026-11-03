@@ -162,6 +162,11 @@ CREATE TABLE IF NOT EXISTS restablecimientos_password (
 
 CREATE INDEX IF NOT EXISTS idx_restablecimientos_usuario ON restablecimientos_password (usuario_id);
 
+-- La recuperación pasó de enlace a código de 6 dígitos (token_hash guarda el
+-- hash del código). Un código corto se puede adivinar, así que se cuentan los
+-- intentos fallidos y a los 5 se invalida (ver POST /restablecer-password).
+ALTER TABLE restablecimientos_password ADD COLUMN IF NOT EXISTS intentos INT NOT NULL DEFAULT 0;
+
 -- ============================================================
 -- 3. MÓDULOS CIUDADANOS: mapa GIS y reportes comunitarios
 -- ============================================================
