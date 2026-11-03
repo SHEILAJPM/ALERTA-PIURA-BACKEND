@@ -38,6 +38,11 @@ export const limitadorSOS = crearLimitador(10 * 60 * 1000, 100);
 // gratuita de la cuenta mandando preguntas en loop.
 export const limitadorAsistente = crearLimitador(10 * 60 * 1000, 15);
 
+// Consulta de DNI (autocompletar el registro): cada consulta gasta cuota del
+// plan gratis de Decolecta y devuelve el nombre de una persona, así que el
+// límite alcanza para un registro con algún error de tipeo, no para recorrer DNIs.
+export const limitadorDni = crearLimitador(10 * 60 * 1000, 20);
+
 // Login: mucho más estricto que el límite general (300/5min compartido por
 // todo /api/*), para frenar fuerza bruta de contraseñas por IP sin depender
 // de un bloqueo por cuenta (que además abriría la puerta a bloquear a otro
