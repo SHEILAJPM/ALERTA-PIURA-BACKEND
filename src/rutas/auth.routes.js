@@ -15,6 +15,7 @@ import {
 import { requerirSesion } from "../intermediarios/auth.js";
 import { limitadorLogin } from "../intermediarios/rateLimit.js";
 import { hashearPassword, verificarPassword, generarToken } from "../servicios/auth.js";
+import { consultarDni } from "../servicios/reniec.js";
 import {
   enviarCorreoRecuperacion,
   enviarCorreoVerificacion,
@@ -61,6 +62,12 @@ const MENSAJE_POR_CONSTRAINT = {
 router.post("/registro", validarBody(registroSchema), async (req, res, next) => {
   try {
     const { nombre, dni, telefono, direccion, correo, password, recibir_alertas_sms: recibirSMS } = req.body;
+    // Solo se rechaza si RENIEC responde que el DNI no existe; si la consulta
+    // no está configurada o falla (null), se registra igual sin verificar.
+    const verificacionDni = await consultarDni(dni);
+    if (verificacionDni?.encontrado === false) {
+      return res.status(400).json({ error: "dni: no existe en RENIEC, revisa que esté bien escrito" });
+    }
     const passwordHash = await hashearPassword(password);
 
     const { rows } = await pool.query(
