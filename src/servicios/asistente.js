@@ -1,5 +1,6 @@
 import { pool } from "../../bd/pool.js";
 import { obtenerEstadoSensores } from "./sensorEstado.js";
+import { logger } from "../utilidades/logger.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MODELO = "openai/gpt-oss-20b";
@@ -98,6 +99,13 @@ export async function responderPregunta({ pregunta, historial = [] }) {
     });
 
     if (!respuesta.ok) {
+      // A quien pregunta no le sirve el detalle, pero en los logs sí: un 401
+      // (clave revocada) y un 429 (sin cuota) se arreglan de forma distinta.
+      const cuerpo = await respuesta.json().catch(() => ({}));
+      logger.error(
+        { status: respuesta.status, error: cuerpo.error?.message },
+        "Groq rechazó la pregunta al asistente"
+      );
       const error = new Error("El asistente no pudo responder, intenta de nuevo en un momento");
       error.status = 502;
       throw error;

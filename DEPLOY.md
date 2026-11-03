@@ -38,8 +38,12 @@ tiene datos de prueba):
 2. En Render: **New > Blueprint**, conectar el repo. Render detecta [`render.yaml`](render.yaml)
    automáticamente y crea el servicio (`piura-alerta-backend`, Docker, plan free, health check en `/health`).
 3. Completar en el dashboard de Render las env vars marcadas como secretas en `render.yaml`
-   (`DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY`, `CORS_ORIGIN`) — `JWT_SECRET` y
-   `SENSOR_API_KEY` Render los genera solos (`generateValue: true`).
+   (`DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY`, `CORS_ORIGIN`, `FRONTEND_URL`) — `JWT_SECRET` y
+   `SENSOR_API_KEY` Render los genera solos (`generateValue: true`). Las de push (`VAPID_*`),
+   SMS (`TWILIO_*`), correo (`BREVO_*`), seguro (`STRIPE_*`) y consulta de DNI (`DNI_API_TOKEN`, de decolecta.com) son opcionales: vacías, esa
+   función queda desactivada sin romper nada (ver `.env.example`).
+   - `SERIAL_PORT` **no** se carga en Render: el ESP32 por USB solo existe en local. En
+     producción el sensor manda sus lecturas por HTTP a `POST /api/lecturas` con `SENSOR_API_KEY`.
    - `CORS_ORIGIN` conviene dejarlo vacío en el primer deploy (acepta cualquier origen)
      y completarlo con la URL real del frontend una vez que esa también esté desplegada
      (ver paso 4).
@@ -83,9 +87,9 @@ o `README`):
 - `VITE_API_URL=https://<tu-servicio>.onrender.com`
 - `VITE_WS_URL=wss://<tu-servicio>.onrender.com` (mismo host, esquema `wss` en vez de `ws`)
 
-Y volver acá a completar `CORS_ORIGIN` con el dominio real del frontend (ej.
-`https://piura-alerta.vercel.app`) — sin esto, el navegador bloquea las requests
-del frontend en producción aunque el backend responda bien.
+Y volver acá a completar `CORS_ORIGIN` y `FRONTEND_URL` con el dominio real del
+frontend (ej. `https://piura-alerta-frontend.onrender.com`) — sin `CORS_ORIGIN`, el
+navegador bloquea las requests del frontend en producción aunque el backend responda bien.
 
 ## 5. Reporte de errores con Sentry (opcional)
 

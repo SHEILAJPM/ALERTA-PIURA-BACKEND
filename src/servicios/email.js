@@ -113,19 +113,21 @@ async function enviarCorreo({ correo, asunto, html, avisoDev }) {
   }
 }
 
-export function enviarCorreoRecuperacion(correo, enlace) {
+export function enviarCorreoRecuperacion(correo, codigo) {
   return enviarCorreo({
     correo,
-    asunto: "Recupera tu contraseña — Piura Alerta",
+    asunto: `${codigo} es tu código para recuperar tu contraseña — Piura Alerta`,
     html: plantillaCorreo(`
       <h2 style="margin:0 0 16px;font-size:20px;color:${COLOR_PRIMARIO};">Recupera tu contraseña</h2>
-      <p style="margin:0 0 20px;">Recibimos una solicitud para restablecer tu contraseña en Piura Alerta.</p>
-      ${botonCorreo(enlace, "Elegir nueva contraseña")}
-      <p style="margin:24px 0 0;font-size:13px;color:#64748b;">
-        Si no fuiste tú, ignora este correo — el enlace expira en 1 hora y nadie más puede usarlo.
+      <p style="margin:0 0 20px;">Recibimos una solicitud para restablecer tu contraseña en Piura Alerta. Escribe este código en la página:</p>
+      <div style="text-align:center;margin:8px 0 24px;">
+        <span style="display:inline-block;padding:16px 28px;background-color:${COLOR_PRIMARIO_SUAVE};color:${COLOR_PRIMARIO};font-size:32px;font-weight:800;letter-spacing:8px;border-radius:12px;">${codigo}</span>
+      </div>
+      <p style="margin:0;font-size:13px;color:#64748b;">
+        Vence en 15 minutos. Si no fuiste tú, ignora este correo: tu contraseña no cambia mientras nadie use el código.
       </p>
     `),
-    avisoDev: { enlace },
+    avisoDev: { codigo },
   });
 }
 

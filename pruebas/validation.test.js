@@ -97,6 +97,7 @@ test("reporteSchema: acepta autor_nombre para reportes anónimos (sin sesión)",
 const registroValido = {
   nombre: "Sheila Principe",
   dni: "12345678",
+  telefono: "987654321",
   correo: "sheila@example.com",
   password: "claveSegura123",
 };
@@ -105,9 +106,32 @@ test("registroSchema: acepta un registro mínimo válido", () => {
   assert.equal(registroSchema.safeParse(registroValido).success, true);
 });
 
-test("registroSchema: dni es opcional (cuenta sin fricción)", () => {
+test("registroSchema: rechaza registro sin dni", () => {
   const { dni: _dni, ...sinDni } = registroValido;
-  assert.equal(registroSchema.safeParse(sinDni).success, true);
+  assert.equal(registroSchema.safeParse(sinDni).success, false);
+});
+
+test("registroSchema: rechaza registro sin teléfono", () => {
+  const { telefono: _telefono, ...sinTelefono } = registroValido;
+  assert.equal(registroSchema.safeParse(sinTelefono).success, false);
+});
+
+test("registroSchema: acepta teléfono con espacios, guiones o +51 y lo guarda limpio", () => {
+  for (const [entrada, esperado] of [
+    ["987 654 321", "987654321"],
+    ["987-654-321", "987654321"],
+    ["+51 987654321", "+51987654321"],
+  ]) {
+    const resultado = registroSchema.safeParse({ ...registroValido, telefono: entrada });
+    assert.equal(resultado.success, true, entrada);
+    assert.equal(resultado.data.telefono, esperado);
+  }
+});
+
+test("registroSchema: rechaza teléfono que no es celular peruano", () => {
+  for (const telefono of ["12345", "087654321", "9876543210", "abcdefghi"]) {
+    assert.equal(registroSchema.safeParse({ ...registroValido, telefono }).success, false, telefono);
+  }
 });
 
 test("registroSchema: rechaza dni con menos de 8 dígitos", () => {
@@ -130,17 +154,8 @@ test("registroSchema: rechaza contraseña muy corta", () => {
   assert.equal(resultado.success, false);
 });
 
-test("registroSchema: rechaza recibir_alertas_sms sin teléfono", () => {
+test("registroSchema: acepta recibir_alertas_sms", () => {
   const resultado = registroSchema.safeParse({ ...registroValido, recibir_alertas_sms: true });
-  assert.equal(resultado.success, false);
-});
-
-test("registroSchema: acepta recibir_alertas_sms cuando hay teléfono", () => {
-  const resultado = registroSchema.safeParse({
-    ...registroValido,
-    telefono: "987654321",
-    recibir_alertas_sms: true,
-  });
   assert.equal(resultado.success, true);
 });
 
@@ -188,12 +203,23 @@ test("olvidePasswordSchema: rechaza un correo inválido", () => {
   assert.equal(olvidePasswordSchema.safeParse({ correo: "no-es-un-correo" }).success, false);
 });
 
-test("restablecerPasswordSchema: acepta token y contraseña nueva válidos", () => {
-  const resultado = restablecerPasswordSchema.safeParse({ token: "abc123", passwordNueva: "claveSegura123" });
-  assert.equal(resultado.success, true);
+const restablecerValido = { correo: "sheila@example.com", codigo: "123456", passwordNueva: "claveSegura123" };
+
+test("restablecerPasswordSchema: acepta correo, código y contraseña nueva válidos", () => {
+  assert.equal(restablecerPasswordSchema.safeParse(restablecerValido).success, true);
 });
 
 test("restablecerPasswordSchema: rechaza contraseña nueva muy corta", () => {
-  const resultado = restablecerPasswordSchema.safeParse({ token: "abc123", passwordNueva: "1234567" });
+  const resultado = restablecerPasswordSchema.safeParse({ ...restablecerValido, passwordNueva: "1234567" });
   assert.equal(resultado.success, false);
+});
+
+test("restablecerPasswordSchema: rechaza código que no tiene 6 dígitos", () => {
+  for (const codigo of ["12345", "1234567", "12a456"]) {
+    assert.equal(
+      restablecerPasswordSchema.safeParse({ ...restablecerValido, codigo }).success,
+      false,
+      codigo
+    );
+  }
 });

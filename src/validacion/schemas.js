@@ -41,34 +41,42 @@ export const reporteSchema = z
 // DNI peruano: 8 dígitos. Se valida como string (no número) para no perder
 // ceros a la izquierda.
 const dni = z
-  .string()
+  .string({ required_error: "es obligatorio" })
   .trim()
   .regex(/^\d{8}$/, "debe tener 8 dígitos");
 
-export const registroSchema = z
-  .object({
-    nombre: z.string().trim().min(1).max(100),
-    dni: dni.optional(),
-    telefono: z.string().trim().max(20).optional(),
-    direccion: z.string().trim().max(200).optional(),
-    correo: z.string().trim().toLowerCase().email().max(150),
-    password: z.string().min(8).max(200),
-    // Opt-in explícito: tener teléfono no implica querer recibir SMS.
-    recibir_alertas_sms: z.boolean().optional(),
-  })
-  .refine((datos) => !datos.recibir_alertas_sms || !!datos.telefono, {
-    message: "Para recibir alertas por SMS primero hay que indicar un teléfono",
-    path: ["recibir_alertas_sms"],
-  });
+// Celular peruano: 9 dígitos empezando en 9, con o sin +51 adelante. Se
+// quitan espacios y guiones antes de validar ("987 654 321" es válido). Mismo
+// criterio que normalizarNumeroPeru en servicios/sms.js, así lo que se guarda
+// siempre se puede usar para mandar SMS.
+const telefono = z
+  .string({ required_error: "es obligatorio" })
+  .trim()
+  .transform((t) => t.replace(/[\s-]/g, ""))
+  .pipe(z.string().regex(/^(\+51)?9\d{8}$/, "debe ser un celular peruano de 9 dígitos (ej. 987654321)"));
 
-// Perfil propio: nombre/teléfono/dirección/opt-in de SMS se pueden editar;
+// DNI y teléfono son obligatorios para registrarse: identifican a la persona
+// y son el canal de contacto si reporta una emergencia.
+export const registroSchema = z.object({
+  nombre: z.string().trim().min(1).max(100),
+  dni,
+  telefono,
+  direccion: z.string().trim().max(200).optional(),
+  correo: z.string().trim().toLowerCase().email().max(150),
+  password: z.string().min(8).max(200),
+  // Opt-in explícito: tener teléfono no implica querer recibir SMS.
+  recibir_alertas_sms: z.boolean().optional(),
+});
+
+// Perfil propio: nombre/teléfono/dirección/opt-in de SMS se pueden editar
+// (el teléfono se puede cambiar pero no borrar);
 // DNI y correo no (correo es el identificador de login; DNI es el dato
 // sensible que se pidió una sola vez al registrarse). Al menos un campo, si
 // no no tiene sentido el request.
 export const perfilSchema = z
   .object({
     nombre: z.string().trim().min(1).max(100).optional(),
-    telefono: z.string().trim().max(20).optional(),
+    telefono: telefono.optional(),
     direccion: z.string().trim().max(200).optional(),
     recibir_alertas_sms: z.boolean().optional(),
     // null = "todos los sensores" (quita el filtro); un uuid = solo ese
@@ -88,8 +96,14 @@ export const olvidePasswordSchema = z.object({
   correo: z.string().trim().toLowerCase().email().max(150),
 });
 
+// Recuperación por código: el correo identifica de quién es el código (no
+// hay enlace con token que lo diga), así que viajan juntos.
 export const restablecerPasswordSchema = z.object({
-  token: z.string().trim().min(1).max(200),
+  correo: z.string().trim().toLowerCase().email().max(150),
+  codigo: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "debe tener 6 dígitos"),
   passwordNueva: z.string().min(8).max(200),
 });
 
