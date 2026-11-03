@@ -29,3 +29,29 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      # URL del frontend en Render (ej. https://piura-alerta-frontend.onrender.com),
+      # para el enlace de "olvidé mi contraseña".
+      - key: FRONTEND_URL
+        sync: false
+      # Opcionales: si quedan vacíos, cada función se desactiva sola sin
+      # afectar el resto (ver .env.example).
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:contacto@piuraalerta.pe
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM
+        value: onboarding@piuraalerta.pe
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
