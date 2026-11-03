@@ -40,7 +40,7 @@ tiene datos de prueba):
 3. Completar en el dashboard de Render las env vars marcadas como secretas en `render.yaml`
    (`DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `GROQ_API_KEY`, `CORS_ORIGIN`, `FRONTEND_URL`) — `JWT_SECRET` y
    `SENSOR_API_KEY` Render los genera solos (`generateValue: true`). Las de push (`VAPID_*`),
-   SMS (`TWILIO_*`), correo (`BREVO_*`) y seguro (`STRIPE_*`) son opcionales: vacías, esa
+   SMS (`TWILIO_*`), correo (`BREVO_*`), seguro (`STRIPE_*`) y consulta de DNI (`DNI_API_TOKEN`, de decolecta.com) son opcionales: vacías, esa
    función queda desactivada sin romper nada (ver `.env.example`).
    - `SERIAL_PORT` **no** se carga en Render: el ESP32 por USB solo existe en local. En
      producción el sensor manda sus lecturas por HTTP a `POST /api/lecturas` con `SENSOR_API_KEY`.
