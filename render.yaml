@@ -30,7 +30,7 @@ services:
       - key: SENTRY_DSN
         sync: false
       # URL del frontend en Render (ej. https://piura-alerta-frontend.onrender.com),
-      # para el enlace de "olvidé mi contraseña".
+      # para los enlaces de los correos (confirmar correo, pagos).
       - key: FRONTEND_URL
         sync: false
       # Opcionales: si quedan vacíos, cada función se desactiva sola sin
