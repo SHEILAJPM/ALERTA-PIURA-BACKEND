@@ -11,6 +11,10 @@ COPY . .
 
 ENV NODE_ENV=production
 
+# La imagen oficial ya trae el usuario sin privilegios `node`: si alguien
+# llega a ejecutar código en el contenedor, no lo hace como root.
+USER node
+
 # El host asigna PORT en runtime (Render/Railway); 4000 es el default local
 # de src/server.js si no está definido. El WebSocket va sobre el mismo
 # puerto (ver src/servicios/websocket.js), así que un solo EXPOSE alcanza.
