@@ -96,8 +96,14 @@ export const olvidePasswordSchema = z.object({
   correo: z.string().trim().toLowerCase().email().max(150),
 });
 
+// Recuperación por código: el correo identifica de quién es el código (no
+// hay enlace con token que lo diga), así que viajan juntos.
 export const restablecerPasswordSchema = z.object({
-  token: z.string().trim().min(1).max(200),
+  correo: z.string().trim().toLowerCase().email().max(150),
+  codigo: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "debe tener 6 dígitos"),
   passwordNueva: z.string().min(8).max(200),
 });
 

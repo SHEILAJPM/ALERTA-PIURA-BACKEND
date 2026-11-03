@@ -27,6 +27,9 @@ import {
 // (ver POST /login). Un ciudadano normal no lo necesita.
 const ROLES_CON_2FA = ["operario", "defensa_civil", "administrador"];
 
+const MINUTOS_CODIGO_RECUPERACION = 15;
+const MAX_INTENTOS_CODIGO_RECUPERACION = 5;
+
 const router = Router();
 
 function hashToken(token) {
@@ -258,39 +261,66 @@ router.post("/olvide-password", limitadorLogin, validarBody(olvidePasswordSchema
     const { rows } = await pool.query("SELECT id FROM usuarios WHERE correo = $1", [correo]);
 
     if (rows.length > 0) {
-      const token = crypto.randomBytes(32).toString("hex");
-      const expiraEn = new Date(Date.now() + 60 * 60 * 1000);
+      // Pedir un código nuevo anula los anteriores: solo vale el último que
+      // llegó al correo, y no se acumulan códigos vivos para adivinar.
+      await pool.query(
+        "UPDATE restablecimientos_password SET usado_en = now() WHERE usuario_id = $1 AND usado_en IS NULL",
+        [rows[0].id]
+      );
+      const codigo = generarCodigo6Digitos();
+      const expiraEn = new Date(Date.now() + MINUTOS_CODIGO_RECUPERACION * 60 * 1000);
       await pool.query(
         "INSERT INTO restablecimientos_password (usuario_id, token_hash, expira_en) VALUES ($1, $2, $3)",
-        [rows[0].id, hashToken(token), expiraEn]
+        [rows[0].id, hashToken(codigo), expiraEn]
       );
-      const base = process.env.FRONTEND_URL ?? "http://localhost:5173";
-      await enviarCorreoRecuperacion(correo, `${base}/restablecer-password?token=${token}`);
+      await enviarCorreoRecuperacion(correo, codigo);
     }
 
-    res.json({ mensaje: "Si el correo existe, te llegará un enlace para restablecer tu contraseña." });
+    res.json({
+      mensaje: "Si el correo tiene una cuenta, te llegará un código para restablecer tu contraseña.",
+    });
   } catch (err) {
     next(err);
   }
 });
 
+// limitadorLogin limita por IP; el contador de intentos limita por código,
+// así ni repartiendo intentos entre muchas IPs se adivinan 6 dígitos.
 router.post(
   "/restablecer-password",
   limitadorLogin,
   validarBody(restablecerPasswordSchema),
   async (req, res, next) => {
     try {
-      const { token, passwordNueva } = req.body;
+      const { correo, codigo, passwordNueva } = req.body;
+      const codigoInvalido = () => res.status(400).json({ error: "Código inválido o expirado" });
+
       const { rows } = await pool.query(
-        `SELECT id, usuario_id FROM restablecimientos_password
-         WHERE token_hash = $1 AND usado_en IS NULL AND expira_en > now()`,
-        [hashToken(token)]
+        `SELECT r.id, r.usuario_id, r.token_hash, r.intentos
+         FROM restablecimientos_password r JOIN usuarios u ON u.id = r.usuario_id
+         WHERE u.correo = $1 AND r.usado_en IS NULL AND r.expira_en > now()
+         ORDER BY r.creado_en DESC
+         LIMIT 1`,
+        [correo]
       );
-      if (rows.length === 0) {
-        return res.status(400).json({ error: "El enlace no es válido o ya expiró" });
+      if (rows.length === 0) return codigoInvalido();
+
+      const { id, usuario_id: usuarioId, token_hash: hashGuardado, intentos } = rows[0];
+      const coincide = crypto.timingSafeEqual(Buffer.from(hashToken(codigo)), Buffer.from(hashGuardado));
+      if (!coincide) {
+        const agotado = intentos + 1 >= MAX_INTENTOS_CODIGO_RECUPERACION;
+        await pool.query(
+          `UPDATE restablecimientos_password
+           SET intentos = intentos + 1, usado_en = CASE WHEN $2 THEN now() ELSE usado_en END
+           WHERE id = $1`,
+          [id, agotado]
+        );
+        if (agotado) {
+          return res.status(400).json({ error: "Demasiados intentos. Pide un código nuevo." });
+        }
+        return codigoInvalido();
       }
 
-      const { id, usuario_id: usuarioId } = rows[0];
       const nuevoHash = await hashearPassword(passwordNueva);
       await pool.query("UPDATE usuarios SET password_hash = $1 WHERE id = $2", [nuevoHash, usuarioId]);
       await pool.query("UPDATE restablecimientos_password SET usado_en = now() WHERE id = $1", [id]);

@@ -203,12 +203,23 @@ test("olvidePasswordSchema: rechaza un correo inválido", () => {
   assert.equal(olvidePasswordSchema.safeParse({ correo: "no-es-un-correo" }).success, false);
 });
 
-test("restablecerPasswordSchema: acepta token y contraseña nueva válidos", () => {
-  const resultado = restablecerPasswordSchema.safeParse({ token: "abc123", passwordNueva: "claveSegura123" });
-  assert.equal(resultado.success, true);
+const restablecerValido = { correo: "sheila@example.com", codigo: "123456", passwordNueva: "claveSegura123" };
+
+test("restablecerPasswordSchema: acepta correo, código y contraseña nueva válidos", () => {
+  assert.equal(restablecerPasswordSchema.safeParse(restablecerValido).success, true);
 });
 
 test("restablecerPasswordSchema: rechaza contraseña nueva muy corta", () => {
-  const resultado = restablecerPasswordSchema.safeParse({ token: "abc123", passwordNueva: "1234567" });
+  const resultado = restablecerPasswordSchema.safeParse({ ...restablecerValido, passwordNueva: "1234567" });
   assert.equal(resultado.success, false);
+});
+
+test("restablecerPasswordSchema: rechaza código que no tiene 6 dígitos", () => {
+  for (const codigo of ["12345", "1234567", "12a456"]) {
+    assert.equal(
+      restablecerPasswordSchema.safeParse({ ...restablecerValido, codigo }).success,
+      false,
+      codigo
+    );
+  }
 });
