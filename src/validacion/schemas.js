@@ -287,3 +287,11 @@ export const login2FASchema = z.object({
     .trim()
     .regex(/^\d{6}$/, "debe tener 6 dígitos"),
 });
+
+// Simulacro en vivo (ver servicios/simulacro.js). 15 min de techo: un
+// simulacro que nadie apaga no debería quedar tapando la app todo el día.
+export const simulacroSchema = z.object({
+  minutos: z.number().int().gte(1).lte(15).optional(),
+  mensaje: z.string().trim().max(300).optional(),
+  con_push: z.boolean().optional(),
+});

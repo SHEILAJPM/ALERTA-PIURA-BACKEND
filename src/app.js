@@ -25,6 +25,7 @@ import impactoRouter from "./rutas/impacto.routes.js";
 import sosRouter from "./rutas/sos.routes.js";
 import configuracionRouter from "./rutas/configuracion.routes.js";
 import dniRouter from "./rutas/dni.routes.js";
+import simulacroRouter from "./rutas/simulacro.routes.js";
 import { manejadorErrores } from "./intermediarios/errorHandler.js";
 import { limitadorGeneral } from "./intermediarios/rateLimit.js";
 
@@ -103,6 +104,7 @@ app.use("/api/impacto", impactoRouter);
 app.use("/api/sos", sosRouter);
 app.use("/api/configuracion", configuracionRouter);
 app.use("/api/dni", dniRouter);
+app.use("/api/simulacro", simulacroRouter);
 
 // Sin esto Express responde un HTML "Cannot GET ..." y el frontend, que
 // siempre espera { error }, no puede mostrar el mensaje.
