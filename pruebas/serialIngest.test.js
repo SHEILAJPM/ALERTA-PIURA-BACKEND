@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parsearNivel } from "../src/servicios/serialIngest.js";
+import { parsearNivel, esComentarioFirmware } from "../src/servicios/serialIngest.js";
 
 test("parsearNivel: acepta número plano y JSON con nivel_cm", () => {
   assert.equal(parsearNivel("12.4\r"), 12.4);
@@ -20,4 +20,12 @@ test("parsearNivel: descarta lecturas fuera de 0-2000 cm", () => {
   assert.equal(parsearNivel('{"nivel_cm":2001}'), null);
   assert.equal(parsearNivel("0"), 0);
   assert.equal(parsearNivel("2000"), 2000);
+});
+
+test("esComentarioFirmware: reconoce los mensajes de diagnóstico del ESP32", () => {
+  assert.equal(esComentarioFirmware("# WiFi OK, IP 192.168.1.20\r"), true);
+  assert.equal(esComentarioFirmware("  # Sin eco válido"), true);
+  assert.equal(esComentarioFirmware('{"nivel_cm":12.3}'), false);
+  // La línea de lectura que imprime el firmware se parsea bien.
+  assert.equal(parsearNivel('{"nivel_cm":12.3}\r'), 12.3);
 });

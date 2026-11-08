@@ -28,7 +28,17 @@ export function iniciarIngestaSerial({ path, baudRate, sensorCodigo }) {
   return puerto;
 }
 
+// Las líneas que empiezan con "#" son mensajes de diagnóstico del firmware
+// (ver firmware/sensor-rio-esp32): no son lecturas ni errores de formato.
+export function esComentarioFirmware(linea) {
+  return linea.trim().startsWith("#");
+}
+
 async function manejarLinea(linea, sensorCodigo) {
+  if (esComentarioFirmware(linea)) {
+    logger.debug(`[serial] ${linea.trim()}`);
+    return;
+  }
   const nivelCm = parsearNivel(linea);
   if (nivelCm === null) {
     logger.warn(`[serial] línea ignorada (formato inválido): ${linea.trim()}`);
