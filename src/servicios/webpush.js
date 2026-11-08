@@ -173,3 +173,21 @@ export async function notificarCambioEstadoPush(evento) {
 
   await enviarATodos(rows, payload);
 }
+
+// Push del simulacro (ver simulacro.js): llega aunque la app esté cerrada.
+// El título dice SIMULACRO para que nadie lo confunda con una alerta real.
+export async function notificarSimulacroPush(mensaje) {
+  if (!habilitado) return 0;
+  const config = await obtenerConfiguracion();
+  if (!config.push_habilitado) return 0;
+
+  const { rows } = await pool.query("SELECT endpoint, p256dh, auth FROM push_subscriptions");
+  if (rows.length === 0) return 0;
+
+  const payload = JSON.stringify({
+    titulo: "SIMULACRO · Piura Alerta",
+    cuerpo: mensaje,
+    estado: "simulacro",
+  });
+  return enviarATodos(rows, payload);
+}
