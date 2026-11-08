@@ -1,59 +1,105 @@
+import { logger } from "../utilidades/logger.js";
+
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-// Modelo con visión (no solo texto): necesario para poder mirar la foto del
-// reporte, no solo leer la descripción. Mismo modelo que asistente.js, para
-// no depender de dos nombres distintos. Si Groq lo retira o renombra, esta
-// función sigue fallando abierto (null) igual que cualquier otro error de
-// red — nunca bloquea el reporte por una falla acá.
-const MODELO = "openai/gpt-oss-20b";
-const TIMEOUT_MS = 6000;
+// Modelo con visión: el único de Groq que mira la foto además del texto y
+// acepta JSON mode con imágenes (ver console.groq.com/docs/vision). Antes se
+// usaba openai/gpt-oss-20b, que es solo texto: la foto nunca se analizaba.
+// Configurable porque Groq retira modelos seguido (Llama 4 Scout se dio de
+// baja en julio de 2026) y cambiarlo no debería requerir un deploy de código.
+const MODELO_VISION = process.env.GROQ_MODELO_VISION || "qwen/qwen3.8-27b";
+// Respaldo solo texto: si el modelo de visión falla, al menos se califica la
+// descripción (y la foto queda "sin analizar", ver más abajo).
+const MODELO_TEXTO = process.env.GROQ_MODELO_TEXTO || "openai/gpt-oss-20b";
+const TIMEOUT_MS = 10_000;
 
-const PROMPT_SISTEMA = `Eres un filtro de contenido para un sistema ciudadano de alertas de inundaciones en Piura, Perú.
-Vas a recibir la descripción de un reporte enviado por un vecino, y casi siempre también la foto que adjuntó.
+export const VEREDICTOS = ["apto", "revisar", "no_apto"];
+
+const PROMPT_SISTEMA = `Eres el moderador de un sistema ciudadano de alertas de inundaciones en Piura, Perú.
+Vas a recibir la descripción de una publicación enviada por un vecino y, casi siempre, la foto que adjuntó.
+Califica si la publicación es APTA para mostrarse a la comunidad.
+
 Responde SOLO con JSON, sin texto adicional, con este formato exacto:
-{"es_sospechoso": boolean, "fuera_de_tema": boolean, "motivo": string}.
+{
+  "veredicto": "apto" | "revisar" | "no_apto",
+  "puntaje": número entero de 0 a 100 (qué tan útil y confiable es la publicación),
+  "imagen": {"apta": boolean, "comentario": string corto en español describiendo qué se ve},
+  "descripcion": {"apta": boolean, "comentario": string corto en español},
+  "motivo": string corto en español que resuma la calificación
+}
 
-fuera_de_tema=true SOLO cuando estés seguro de que la foto y/o el texto no tienen nada que ver con
-inundaciones, el río, lluvias, daños de una crecida, u otro riesgo/emergencia urbana — por ejemplo una
-selfie, comida, una mascota, un meme, publicidad, o cualquier foto claramente ajena al tema. Esto hace
-que el reporte se archive automáticamente sin pasar por revisión humana, así que usalo solo cuando no
-haya ninguna duda razonable.
+Criterios:
+- "apto": la foto muestra algo relacionado con inundaciones, el río, lluvias, calles con agua, daños,
+  desbordes, aniegos, defensas ribereñas, evacuaciones u otra emergencia urbana, y la descripción es
+  coherente con la foto. Puntaje alto (70-100).
+- "revisar": dudas razonables: la foto no coincide del todo con el texto, está muy oscura o borrosa, el
+  texto es confuso o muy corto. Un operador humano decide. Puntaje medio (30-69).
+- "no_apto": SOLO si estás seguro de que no tiene nada que ver con el tema: selfie, comida, mascota, meme,
+  captura de pantalla, publicidad, contenido ofensivo o sexual. Esta publicación se archiva sin revisión
+  humana, así que úsalo solo sin ninguna duda. Puntaje bajo (0-29).
 
-es_sospechoso=true (con fuera_de_tema=false) para casos ambiguos: texto sin sentido, la foto no
-coincide claramente con la descripción, calidad muy mala para distinguir algo, o dudas menores. Esto
-NO oculta el reporte, solo lo marca para que un operador humano lo revise con prioridad más baja.
+Si podría ser una emergencia real (aunque esté mal escrita, informal o la foto sea de mala calidad), NUNCA
+uses "no_apto": es preferible que un humano revise de más a ocultar una emergencia real.`;
 
-Si hay cualquier duda razonable de que podría ser un reporte real de inundación (aunque esté mal
-escrito, la foto sea de mala calidad, o sea breve/informal), marca fuera_de_tema=false. Ante la duda,
-NUNCA marques fuera_de_tema=true: es preferible que un operador humano revise un reporte de más a que
-se oculte una emergencia real.`;
+function aBooleano(valor) {
+  return typeof valor === "boolean" ? valor : null;
+}
 
-// Best-effort: nunca lanza ni bloquea al llamador. Si falta la API key, se
-// agota el tiempo, o la respuesta no es el JSON esperado, devuelve null (=
-// "no se pudo analizar"). La decisión de moderar sigue siendo humana salvo
-// el caso fuera_de_tema=true, que archiva solo (ver POST /api/reportes-ciudadanos).
-export async function analizarReporte({ descripcion, fotoUrl }) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return null;
+function aComentario(valor) {
+  return typeof valor === "string" && valor.trim() ? valor.trim().slice(0, 160) : null;
+}
 
+// Valida y ajusta lo que devolvió el modelo. Exportado para las pruebas.
+// - Puntaje fuera de rango o ausente: se recorta o se deduce del veredicto.
+// - Si la foto no se pudo analizar, nunca se archiva solo por el texto
+//   ("no_apto" baja a "revisar") ni se da por "apto" algo sin mirar la foto.
+export function normalizarCalificacion(crudo, { imagenAnalizada, teniaFoto }) {
+  if (!crudo || !VEREDICTOS.includes(crudo.veredicto)) return null;
+
+  let veredicto = crudo.veredicto;
+  if (teniaFoto && !imagenAnalizada && veredicto !== "revisar") veredicto = "revisar";
+
+  const PUNTAJE_POR_VEREDICTO = { apto: 85, revisar: 50, no_apto: 10 };
+  let puntaje = Number.isFinite(crudo.puntaje)
+    ? Math.round(Math.min(100, Math.max(0, crudo.puntaje)))
+    : PUNTAJE_POR_VEREDICTO[veredicto];
+  // Que el número nunca contradiga al veredicto (ej. "no_apto" con 90).
+  const RANGOS = { apto: [70, 100], revisar: [30, 69], no_apto: [0, 29] };
+  const [min, max] = RANGOS[veredicto];
+  puntaje = Math.min(max, Math.max(min, puntaje));
+
+  const imagen = imagenAnalizada
+    ? { apta: aBooleano(crudo.imagen?.apta), comentario: aComentario(crudo.imagen?.comentario) }
+    : {
+        apta: null,
+        comentario: teniaFoto ? "No se pudo analizar la foto; la revisa un moderador." : null,
+      };
+
+  return {
+    veredicto,
+    puntaje,
+    motivo: aComentario(crudo.motivo),
+    imagen,
+    descripcion: {
+      apta: aBooleano(crudo.descripcion?.apta),
+      comentario: aComentario(crudo.descripcion?.comentario),
+    },
+    // Campos de antes (columnas posible_spam / estado del reporte).
+    es_sospechoso: veredicto === "revisar",
+    fuera_de_tema: veredicto === "no_apto",
+  };
+}
+
+async function consultarGroq({ apiKey, modelo, contenido }) {
   const controlador = new AbortController();
   const timeout = setTimeout(() => controlador.abort(), TIMEOUT_MS);
-
   try {
-    const contenido = [{ type: "text", text: descripcion.slice(0, 2000) }];
-    if (fotoUrl) {
-      contenido.push({ type: "image_url", image_url: { url: fotoUrl } });
-    }
-
     const respuesta = await fetch(GROQ_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: MODELO,
+        model: modelo,
         temperature: 0,
-        max_tokens: 400,
+        max_tokens: 500,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: PROMPT_SISTEMA },
@@ -62,26 +108,44 @@ export async function analizarReporte({ descripcion, fotoUrl }) {
       }),
       signal: controlador.signal,
     });
-
-    if (!respuesta.ok) return null;
-
-    const data = await respuesta.json();
-    const texto = data.choices?.[0]?.message?.content;
-    if (!texto) return null;
-
-    const parseado = JSON.parse(texto);
-    if (typeof parseado.es_sospechoso !== "boolean" || typeof parseado.fuera_de_tema !== "boolean") {
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.json().catch(() => ({}));
+      logger.warn(
+        { modelo, status: respuesta.status, error: cuerpo?.error?.message },
+        "Groq rechazó la calificación de la publicación"
+      );
       return null;
     }
-
-    return {
-      es_sospechoso: parseado.es_sospechoso,
-      fuera_de_tema: parseado.fuera_de_tema,
-      motivo: typeof parseado.motivo === "string" ? parseado.motivo.slice(0, 200) : null,
-    };
-  } catch {
+    const data = await respuesta.json();
+    const texto = data.choices?.[0]?.message?.content;
+    return texto ? JSON.parse(texto) : null;
+  } catch (err) {
+    logger.warn({ modelo, err: err.message }, "No se pudo calificar la publicación con IA");
     return null;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// Best-effort: nunca lanza ni bloquea al llamador. Si falta la API key o las
+// dos consultas fallan, devuelve null (= "no se pudo analizar") y la
+// publicación sigue el flujo normal de moderación humana.
+export async function analizarReporte({ descripcion, fotoUrl }) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  const texto = { type: "text", text: `Descripción del vecino: ${descripcion.slice(0, 2000)}` };
+
+  if (fotoUrl) {
+    const crudo = await consultarGroq({
+      apiKey,
+      modelo: MODELO_VISION,
+      contenido: [texto, { type: "image_url", image_url: { url: fotoUrl } }],
+    });
+    const calificacion = normalizarCalificacion(crudo, { imagenAnalizada: true, teniaFoto: true });
+    if (calificacion) return calificacion;
+  }
+
+  const crudo = await consultarGroq({ apiKey, modelo: MODELO_TEXTO, contenido: [texto] });
+  return normalizarCalificacion(crudo, { imagenAnalizada: false, teniaFoto: Boolean(fotoUrl) });
 }
