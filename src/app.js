@@ -49,7 +49,13 @@ const saltos = saltosProxy();
 if (saltos > 0) app.set("trust proxy", saltos);
 
 app.use(helmet());
-app.use(cors(origenesPermitidos?.length ? { origin: origenesPermitidos } : undefined));
+// La app Android (Capacitor, ver ALERTA-PIURA-FRONTEND/capacitor.config.json)
+// sirve la web desde https://localhost dentro del celular: sin esto, con
+// CORS_ORIGIN configurado, la app no podría hablar con el backend.
+const ORIGENES_APP_ANDROID = ["https://localhost", "capacitor://localhost"];
+app.use(
+  cors(origenesPermitidos?.length ? { origin: [...origenesPermitidos, ...ORIGENES_APP_ANDROID] } : undefined)
+);
 // Log estructurado por request (método, ruta, status, tiempo de respuesta) —
 // en /health se apaga: el simulador/monitor de uptime le pega cada pocos
 // segundos y ensuciaría los logs sin aportar nada. Serializers recortados a
