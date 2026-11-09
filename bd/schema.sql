@@ -224,6 +224,15 @@ ALTER TABLE reportes_ciudadanos ADD COLUMN IF NOT EXISTS autor_nombre VARCHAR(10
 ALTER TABLE reportes_ciudadanos ADD COLUMN IF NOT EXISTS posible_spam BOOLEAN;
 ALTER TABLE reportes_ciudadanos ADD COLUMN IF NOT EXISTS motivo_ia VARCHAR(200);
 
+-- Calificación completa de la IA (ver moderacionIA.js): veredicto
+-- apto/revisar/no_apto, puntaje 0-100 y el comentario sobre la foto y sobre
+-- la descripción por separado. NULL = no se pudo analizar.
+ALTER TABLE reportes_ciudadanos ADD COLUMN IF NOT EXISTS veredicto_ia VARCHAR(10)
+  CHECK (veredicto_ia IN ('apto', 'revisar', 'no_apto'));
+ALTER TABLE reportes_ciudadanos ADD COLUMN IF NOT EXISTS puntaje_ia SMALLINT
+  CHECK (puntaje_ia BETWEEN 0 AND 100);
+ALTER TABLE reportes_ciudadanos ADD COLUMN IF NOT EXISTS detalle_ia JSONB;
+
 CREATE INDEX IF NOT EXISTS idx_reportes_ciudadanos_ubicacion
   ON reportes_ciudadanos USING GIST (ubicacion);
 

@@ -43,7 +43,7 @@ router.get("/", autenticacionOpcional, async (req, res, next) => {
     const { rows } = await pool.query(
       `SELECT r.id, r.descripcion, r.foto_url,
               ST_AsGeoJSON(r.ubicacion)::json AS ubicacion, r.estado, r.likes_count, r.creado_en,
-              r.posible_spam, r.motivo_ia, r.confirmaciones_count,
+              r.posible_spam, r.motivo_ia, r.veredicto_ia, r.puntaje_ia, r.detalle_ia, r.confirmaciones_count,
               u.id AS usuario_id, COALESCE(u.nombre, r.autor_nombre, 'Anónimo') AS usuario_nombre,
               EXISTS (
                 SELECT 1 FROM reportes_likes rl
@@ -103,19 +103,23 @@ router.post(
         params.push(lon, lat);
         ubicacionSql = "ST_SetSRID(ST_MakePoint($5, $6), 4326)";
       }
-      const idxSpam = params.length + 1;
-      const idxMotivo = params.length + 2;
-      const idxEstado = params.length + 3;
+      const base = params.length;
       params.push(
         analisis?.es_sospechoso ?? null,
         analisis?.motivo ?? null,
-        archivadoPorIA ? "descartado" : "pendiente"
+        archivadoPorIA ? "descartado" : "pendiente",
+        analisis?.veredicto ?? null,
+        analisis?.puntaje ?? null,
+        analisis ? JSON.stringify({ imagen: analisis.imagen, descripcion: analisis.descripcion }) : null
       );
+      const p = (n) => `$${base + n}`;
 
       const { rows } = await pool.query(
-        `INSERT INTO reportes_ciudadanos (usuario_id, autor_nombre, descripcion, foto_url, ubicacion, posible_spam, motivo_ia, estado)
-       VALUES ($1, $2, $3, $4, ${ubicacionSql}, $${idxSpam}, $${idxMotivo}, $${idxEstado})
-       RETURNING id, descripcion, foto_url, estado, likes_count, confirmaciones_count, creado_en, posible_spam, motivo_ia`,
+        `INSERT INTO reportes_ciudadanos (usuario_id, autor_nombre, descripcion, foto_url, ubicacion,
+                                          posible_spam, motivo_ia, estado, veredicto_ia, puntaje_ia, detalle_ia)
+       VALUES ($1, $2, $3, $4, ${ubicacionSql}, ${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)})
+       RETURNING id, descripcion, foto_url, estado, likes_count, confirmaciones_count, creado_en,
+                 posible_spam, motivo_ia, veredicto_ia, puntaje_ia, detalle_ia`,
         params
       );
 

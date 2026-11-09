@@ -25,6 +25,7 @@ import impactoRouter from "./rutas/impacto.routes.js";
 import sosRouter from "./rutas/sos.routes.js";
 import configuracionRouter from "./rutas/configuracion.routes.js";
 import dniRouter from "./rutas/dni.routes.js";
+import simulacroRouter from "./rutas/simulacro.routes.js";
 import { manejadorErrores } from "./intermediarios/errorHandler.js";
 import { limitadorGeneral } from "./intermediarios/rateLimit.js";
 
@@ -48,7 +49,13 @@ const saltos = saltosProxy();
 if (saltos > 0) app.set("trust proxy", saltos);
 
 app.use(helmet());
-app.use(cors(origenesPermitidos?.length ? { origin: origenesPermitidos } : undefined));
+// La app Android (Capacitor, ver ALERTA-PIURA-FRONTEND/capacitor.config.json)
+// sirve la web desde https://localhost dentro del celular: sin esto, con
+// CORS_ORIGIN configurado, la app no podría hablar con el backend.
+const ORIGENES_APP_ANDROID = ["https://localhost", "capacitor://localhost"];
+app.use(
+  cors(origenesPermitidos?.length ? { origin: [...origenesPermitidos, ...ORIGENES_APP_ANDROID] } : undefined)
+);
 // Log estructurado por request (método, ruta, status, tiempo de respuesta) —
 // en /health se apaga: el simulador/monitor de uptime le pega cada pocos
 // segundos y ensuciaría los logs sin aportar nada. Serializers recortados a
@@ -103,6 +110,7 @@ app.use("/api/impacto", impactoRouter);
 app.use("/api/sos", sosRouter);
 app.use("/api/configuracion", configuracionRouter);
 app.use("/api/dni", dniRouter);
+app.use("/api/simulacro", simulacroRouter);
 
 // Sin esto Express responde un HTML "Cannot GET ..." y el frontend, que
 // siempre espera { error }, no puede mostrar el mensaje.
