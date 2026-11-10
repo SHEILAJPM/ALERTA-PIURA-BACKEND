@@ -2,8 +2,7 @@
 
 ## Integrantes
 
-- **Sheila Jacqueline Principe Merino** — Hardware IoT y Backend
-- **Adrian Steven Juarez Panta** — Frontend UI/UX
+- **Sheila Jacqueline Principe Merino** — Hardware IoT y Backend / Frontend UI/UX
 
 ## Qué es esto
 
