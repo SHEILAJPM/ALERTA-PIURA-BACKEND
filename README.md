@@ -17,6 +17,7 @@ En resumen, el servidor se encarga de:
 - Guardar el historial de mediciones.
 - Calcular si el nivel del río está subiendo y qué tan rápido.
 - Consultar el pronóstico de lluvia de las próximas 24 h sobre cada sensor (Open-Meteo) y combinarlo con la subida del río en un nivel de riesgo (bajo, medio o alto).
+- Avisar por Telegram y push cuando se pronostica lluvia fuerte, aunque el río todavía esté bajo (revisión automática cada hora).
 - Avisar por WebSocket a la página web cuando algo cambia.
 - Mandar alertas por Telegram.
 
@@ -92,6 +93,7 @@ Todo el esquema está en [`bd/schema.sql`](bd/schema.sql) y se aplica corriendo 
 - `sensores` — un registro por cada ESP32 físico, con su ubicación y los niveles que disparan cada alerta.
 - `lecturas` — cada medición que manda el sensor. Como llegan cada pocos segundos, esta tabla crece rápido, así que está dividida por mes. Un script (`src/tareas/particionesCron.js`) se encarga de crear la partición del mes siguiente automáticamente.
 - `eventos_alerta` — guarda cada vez que el estado del río cambia (normal → prealerta → alerta roja), para no mandar el mismo aviso de Telegram varias veces seguidas.
+- `avisos_lluvia` — cada aviso preventivo de lluvia fuerte que se mandó. Sirve para no repetir el mismo aviso cada hora (espera 6 horas entre avisos de un mismo sensor) y como historial.
 - `suscriptores_telegram` — la lista de chats que reciben las alertas.
 
 **Lo de la parte ciudadana** (mapa y reportes):
