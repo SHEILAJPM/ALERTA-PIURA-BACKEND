@@ -479,3 +479,22 @@ CREATE TABLE IF NOT EXISTS verificaciones_2fa (
   usado_en TIMESTAMPTZ,
   creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Avisos preventivos por lluvia fuerte pronosticada (ver
+-- src/servicios/avisoLluvia.js). Se guarda cada envío para no repetir el
+-- mismo aviso cada hora: el cron revisa el último por sensor, y eso tiene que
+-- sobrevivir a los reinicios del servidor (Render gratis duerme y se reinicia
+-- seguido). También queda como historial de qué se avisó y cuándo.
+CREATE TABLE IF NOT EXISTS avisos_lluvia (
+  id BIGSERIAL PRIMARY KEY,
+  sensor_id UUID NOT NULL REFERENCES sensores(id),
+  intensidad VARCHAR(20) NOT NULL,
+  maxima_mm_h NUMERIC(6,1) NOT NULL,
+  total_mm NUMERIC(6,1) NOT NULL,
+  probabilidad_max INT NOT NULL,
+  hora_maxima TEXT,
+  mensaje TEXT NOT NULL,
+  enviado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_avisos_lluvia_sensor_enviado ON avisos_lluvia (sensor_id, enviado_en DESC);
