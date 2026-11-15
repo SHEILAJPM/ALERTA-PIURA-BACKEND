@@ -17,7 +17,7 @@ function crearLimitador(windowMs, limit) {
 // Aplica a todo /api/*: protección general contra scraping/abuso básico.
 export const limitadorGeneral = crearLimitador(5 * 60 * 1000, 300);
 
-// Ingesta de lecturas: el simulador/ESP32 envía ~1 lectura cada pocos
+// Ingesta de lecturas: el ESP32 envía ~1 lectura cada pocos
 // segundos, así que el límite deja bastante margen sobre el uso normal.
 export const limitadorLecturas = crearLimitador(60 * 1000, 60);
 

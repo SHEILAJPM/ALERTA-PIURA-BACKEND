@@ -58,7 +58,7 @@ app.use(
   cors(origenesPermitidos?.length ? { origin: [...origenesPermitidos, ...ORIGENES_APP_ANDROID] } : undefined)
 );
 // Log estructurado por request (método, ruta, status, tiempo de respuesta) —
-// en /health se apaga: el simulador/monitor de uptime le pega cada pocos
+// en /health se apaga: el monitor de uptime le pega cada pocos
 // segundos y ensuciaría los logs sin aportar nada. Serializers recortados a
 // propósito: los de pino-http por defecto vuelcan headers/CSP completos por
 // request, generan mucho volumen para el plan gratuito de un host de logs.

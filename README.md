@@ -82,7 +82,7 @@ JWT_SECRET=
 
 Algunas notas sobre esas variables:
 
-- Si dejas `SERIAL_PORT` vacío, el servidor no intenta leer el puerto serial. Sirve para probar solo con `npm run simulate`, sin tener el sensor conectado.
+- Si dejas `SERIAL_PORT` vacío, el servidor no intenta leer el puerto serial. Úsalo cuando el ESP32 manda sus lecturas por WiFi en vez de por cable.
 - Si dejas `CORS_ORIGIN` vacío, acepta pedidos de cualquier lado (cómodo para probar en tu compu). En producción hay que poner el dominio del frontend.
 - Si dejas `SENSOR_API_KEY` vacío, cualquiera puede mandar datos a `POST /api/lecturas` sin identificarse. Solo se recomienda dejarlo vacío mientras pruebas en tu compu.
 - `JWT_SECRET` sí o sí tiene que tener un valor, porque el servidor no arranca sin él. Para generar uno, corres esto en la terminal:
@@ -158,15 +158,12 @@ npm run start    # sin reinicio automático
 
 Esto levanta la API, el WebSocket (los dos en el puerto 4000) y el bot de Telegram si pusiste el token.
 
-Si todavía no tienes el ESP32 conectado, puedes simular las mediciones desde otra terminal:
+Las lecturas llegan solo del sensor real (ESP32, ver `firmware/`), por dos caminos:
 
-```bash
-npm run simulate
-```
+- **Por WiFi:** el ESP32 hace `POST /api/lecturas` con la API key del sensor.
+- **Por cable USB:** si configuraste `SERIAL_PORT`, el servidor lee directo del puerto serial. El ESP32 manda una lectura por línea, ya sea un número (`12.4`) o un JSON (`{"nivel_cm":12.4}`).
 
-Así puedes probar todo (alertas, WebSocket, Telegram) sin necesidad del sensor físico.
-
-Cuando el ESP32 sí está conectado y configuraste `SERIAL_PORT`, el servidor lee directo del puerto serial y ya no hace falta el simulador. El ESP32 debe mandar una lectura por línea, ya sea un número (`12.4`) o un JSON (`{"nivel_cm":12.4}`).
+Si el sensor no está encendido, la app no inventa datos: muestra que no hay lecturas recientes.
 
 ## Pruebas
 
@@ -186,7 +183,7 @@ Corre con el test runner que ya trae Node, sin librerías extra. Prueba la lógi
 | GET    | `/api/lecturas/ultima?sensor=`                     | Última medición, predicción de crecida, pronóstico de lluvia y riesgo combinado    |
 | GET    | `/api/lecturas/lluvia?sensor=`                     | Pronóstico de lluvia de las próximas 24 h sobre el sensor (Open-Meteo)             |
 | GET    | `/api/riesgo?sensor=&lat=&lon=`                    | Puntaje de riesgo de 0 a 100 que explica cada factor y de qué dato viene           |
-| POST   | `/api/lecturas` 🔒⏱                                | Registra una medición nueva. La usan el simulador y el ESP32                       |
+| POST   | `/api/lecturas` 🔒⏱                                | Registra una medición nueva. La usa el ESP32 cuando manda por WiFi                 |
 | GET    | `/api/albergues`                                   | Lista de albergues activos                                                         |
 | POST   | `/api/albergues` 👷⏱                               | Crea un albergue nuevo                                                             |
 | PATCH  | `/api/albergues/:id/ocupacion` 👷⏱                 | Actualiza cuánta gente hay en un albergue                                          |

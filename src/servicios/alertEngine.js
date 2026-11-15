@@ -7,12 +7,12 @@ export function calcularEstado(nivelCm, prealertaCm, alertaRojaCm) {
 }
 
 // Punto de entrada único para registrar una medición, sin importar si viene
-// del ESP32 (SerialPort), del simulador, o de un POST manual de prueba.
+// del ESP32 por cable (SerialPort) o por WiFi (POST /api/lecturas).
 // Inserta la lectura y, si el estado cambió respecto al último evento
 // registrado, crea un nuevo eventos_alerta.
 //
 // Todo va en una transacción con la fila del sensor bloqueada (FOR UPDATE):
-// sin eso, dos lecturas casi simultáneas (reintento del ESP32 + simulador,
+// sin eso, dos lecturas casi simultáneas (reintento del ESP32 por WiFi,
 // serial + POST) podían leer ambas el mismo "último evento", insertar dos
 // eventos_alerta iguales y mandar la misma alerta dos veces por Telegram/SMS.
 // El bloqueo es por sensor, así que lecturas de sensores distintos no se esperan.

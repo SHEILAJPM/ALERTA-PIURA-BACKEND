@@ -76,9 +76,8 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-// Registra una medición. Hoy la usa el simulador (npm run simulate); cuando
-// el ESP32 esté conectado por SerialPort, seguirá siendo el mismo punto de
-// entrada (procesarLectura) llamado directamente en vez de vía HTTP.
+// Registra una medición que el ESP32 manda por WiFi. Por cable USB entra por
+// serialIngest.js, que llama al mismo procesarLectura directamente.
 router.post(
   "/",
   limitadorLecturas,

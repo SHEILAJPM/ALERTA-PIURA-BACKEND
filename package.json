@@ -11,7 +11,6 @@
     "start": "node src/server.js",
     "db:migrate": "node bd/migrate.js",
     "db:seed": "node bd/seed.js",
-    "simulate": "node src/simulador/simulateReadings.js",
     "test": "node --import ./pruebas/env-setup.js --test",
     "loadtest": "node herramientas/loadtest.js",
     "lint": "eslint .",

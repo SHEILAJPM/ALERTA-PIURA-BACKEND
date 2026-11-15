@@ -7,8 +7,8 @@ import { logger } from "../utilidades/logger.js";
 
 // Ingesta real del ESP32: el firmware escribe una línea de texto por lectura
 // (número plano "12.4" o JSON {"nivel_cm":12.4}) y acá se reusa el mismo
-// punto de entrada que usa el simulador HTTP (procesarLectura), tal como
-// estaba planeado en el comentario original de lecturas.routes.js.
+// punto de entrada que usa POST /api/lecturas (procesarLectura), así ambos
+// caminos del sensor avisan y guardan igual.
 export function iniciarIngestaSerial({ path, baudRate, sensorCodigo }) {
   if (!path) {
     logger.warn("SERIAL_PORT no configurado: la ingesta por puerto serie del ESP32 queda desactivada.");
