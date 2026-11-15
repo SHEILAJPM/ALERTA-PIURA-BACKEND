@@ -24,13 +24,33 @@ export function nivelDePuntaje(puntaje) {
   return "alto";
 }
 
-function factorRio({ nivelCm, umbralRojoCm, prediccion, sensorCodigo }) {
+// Una lectura más vieja que esto no describe el río de ahora: el sensor
+// manda cada pocos segundos, así que 30 min sin datos es un sensor caído.
+export const LECTURA_VIGENTE_MIN = 30;
+
+function minutosDesde(fecha, ahora) {
+  return Math.round((ahora.getTime() - new Date(fecha).getTime()) / 60000);
+}
+
+function factorRio({ nivelCm, umbralRojoCm, prediccion, sensorCodigo, medidoEn, ahora }) {
+  const antiguedad = medidoEn ? minutosDesde(medidoEn, ahora) : null;
+  if (antiguedad !== null && antiguedad > LECTURA_VIGENTE_MIN) {
+    const hace = antiguedad < 120 ? `${antiguedad} min` : `${Math.round(antiguedad / 60)} h`;
+    return {
+      clave: "rio",
+      puntos: 0,
+      texto: `El sensor no reporta desde hace ${hace}: no se puede medir el río ahora`,
+      fuente: `Sensor ${sensorCodigo}`,
+      sinDatos: true,
+    };
+  }
   if (nivelCm == null || !umbralRojoCm) {
     return {
       clave: "rio",
       puntos: 0,
       texto: "Sin lecturas recientes del sensor",
       fuente: `Sensor ${sensorCodigo}`,
+      sinDatos: true,
     };
   }
   const fraccion = Math.min(1, Math.max(0, nivelCm / umbralRojoCm));
@@ -50,6 +70,7 @@ function factorLluvia(lluvia) {
       puntos: 0,
       texto: "Pronóstico de lluvia no disponible",
       fuente: "Pronóstico Open-Meteo",
+      sinDatos: true,
     };
   }
   const base = PUNTOS_LLUVIA[lluvia.intensidad] ?? 0;
@@ -92,9 +113,19 @@ function factorAlbergue(albergue) {
 
 // Función pura: recibe los datos ya consultados y arma el puntaje.
 // `zona`: undefined = no se mandó ubicación; null = fuera de toda zona.
-export function calcularPuntaje({ sensorCodigo, nivelCm, umbralRojoCm, prediccion, lluvia, zona, albergue }) {
+export function calcularPuntaje({
+  sensorCodigo,
+  nivelCm,
+  umbralRojoCm,
+  medidoEn = null,
+  ahora = new Date(),
+  prediccion,
+  lluvia,
+  zona,
+  albergue,
+}) {
   const factores = [
-    factorRio({ nivelCm, umbralRojoCm, prediccion, sensorCodigo }),
+    factorRio({ nivelCm, umbralRojoCm, prediccion, sensorCodigo, medidoEn, ahora }),
     factorLluvia(lluvia),
     factorZona(zona),
     factorAlbergue(albergue),
@@ -102,17 +133,25 @@ export function calcularPuntaje({ sensorCodigo, nivelCm, umbralRojoCm, prediccio
 
   const suma = factores.reduce((acc, f) => acc + f.puntos, 0);
   const puntaje = Math.min(100, Math.max(0, suma));
-  return { puntaje, nivel: nivelDePuntaje(puntaje), factores };
+  // Si al sensor o al pronóstico les faltan datos, el puntaje sale más bajo
+  // de lo que quizá es: la app tiene que decir "no asumas que no hay riesgo".
+  const datosCompletos = !factores.some((f) => f.sinDatos);
+  return {
+    puntaje,
+    nivel: nivelDePuntaje(puntaje),
+    datos_completos: datosCompletos,
+    factores: factores.map(({ sinDatos: _sinDatos, ...f }) => ({ ...f, sin_datos: Boolean(_sinDatos) })),
+  };
 }
 
 // Consulta todo lo que hace falta y devuelve el puntaje. lat/lon son
 // opcionales: sin ellos se calcula solo con el río y la lluvia.
 export async function puntajeParaUbicacion({ sensorCodigo, lat, lon }) {
   const { rows: lecturas } = await pool.query(
-    `SELECT l.nivel_cm, s.nivel_alerta_roja_cm
+    `SELECT l.nivel_cm, l.medido_en, s.nivel_alerta_roja_cm
      FROM sensores s
      LEFT JOIN LATERAL (
-       SELECT nivel_cm FROM lecturas WHERE sensor_id = s.id ORDER BY medido_en DESC LIMIT 1
+       SELECT nivel_cm, medido_en FROM lecturas WHERE sensor_id = s.id ORDER BY medido_en DESC LIMIT 1
      ) l ON true
      WHERE s.codigo = $1`,
     [sensorCodigo]
@@ -151,6 +190,7 @@ export async function puntajeParaUbicacion({ sensorCodigo, lat, lon }) {
     sensorCodigo,
     nivelCm: nivel == null ? null : Number(nivel),
     umbralRojoCm: Number(lecturas[0].nivel_alerta_roja_cm),
+    medidoEn: lecturas[0].medido_en,
     prediccion,
     lluvia,
     zona: conUbicacion ? (zonas.rows[0] ?? null) : undefined,

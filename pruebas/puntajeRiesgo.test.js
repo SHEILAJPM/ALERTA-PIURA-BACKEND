@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { calcularPuntaje, nivelDePuntaje } from "../src/servicios/puntajeRiesgo.js";
+import { leerUbicacion } from "../src/rutas/riesgo.routes.js";
 
 const BASE = { sensorCodigo: "RIO-PIURA-01", umbralRojoCm: 15 };
 const SUBIENDO = { disponible: true, pendienteCmPorMin: 0.4, minutosParaAlerta: 11 };
@@ -92,4 +93,54 @@ test("calcularPuntaje: el puntaje nunca es negativo", () => {
     albergue: { nombre: "Cerca", distancia_m: 300 },
   });
   assert.equal(r.puntaje, 0);
+});
+
+test("leerUbicacion: sin lat ni lon es válido (sin ubicación)", () => {
+  assert.deepEqual(leerUbicacion({}), { lat: null, lon: null });
+});
+
+test("leerUbicacion: convierte lat/lon a número", () => {
+  assert.deepEqual(leerUbicacion({ lat: "-5.19", lon: "-80.63" }), { lat: -5.19, lon: -80.63 });
+});
+
+test("leerUbicacion: rechaza lat sin lon y valores fuera de rango", () => {
+  assert.ok(leerUbicacion({ lat: "-5.19" }).error);
+  assert.ok(leerUbicacion({ lat: "abc", lon: "-80" }).error);
+  assert.ok(leerUbicacion({ lat: "-5", lon: "200" }).error);
+});
+
+test("calcularPuntaje: una lectura de hace más de 30 min no suma riesgo del río", () => {
+  const ahora = new Date("2026-11-15T21:00:00Z");
+  const r = calcularPuntaje({
+    ...BASE,
+    nivelCm: 10.8,
+    medidoEn: new Date("2026-11-10T21:00:00Z"),
+    ahora,
+    prediccion: SUBIENDO,
+    lluvia: null,
+  });
+  assert.equal(puntosDe(r, "rio"), 0);
+  assert.match(r.factores[0].texto, /no reporta desde hace 120 h/);
+});
+
+test("calcularPuntaje: una lectura de hace 5 min sí cuenta", () => {
+  const ahora = new Date("2026-11-15T21:00:00Z");
+  const r = calcularPuntaje({
+    ...BASE,
+    nivelCm: 10.8,
+    medidoEn: new Date("2026-11-15T20:55:00Z"),
+    ahora,
+    prediccion: SUBIENDO,
+    lluvia: null,
+  });
+  assert.equal(puntosDe(r, "rio"), 32);
+});
+
+test("calcularPuntaje: avisa con datos_completos=false si al sensor o la lluvia les faltan datos", () => {
+  const completo = calcularPuntaje({ ...BASE, nivelCm: 10.8, prediccion: SUBIENDO, lluvia: MODERADA });
+  assert.equal(completo.datos_completos, true);
+
+  const sinLluvia = calcularPuntaje({ ...BASE, nivelCm: 10.8, prediccion: SUBIENDO, lluvia: null });
+  assert.equal(sinLluvia.datos_completos, false);
+  assert.equal(sinLluvia.factores.find((f) => f.clave === "lluvia").sin_datos, true);
 });
