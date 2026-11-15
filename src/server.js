@@ -16,6 +16,7 @@ import { iniciarPagos } from "./servicios/pagos.js";
 import { iniciarIngestaSerial } from "./servicios/serialIngest.js";
 import { iniciarCronParticiones } from "./tareas/particionesCron.js";
 import { iniciarCronAvisosVencimiento } from "./tareas/avisosVencimientoCron.js";
+import { iniciarCronAvisosLluvia } from "./tareas/avisosLluviaCron.js";
 import { advertirSiSensorApiKeyFalta } from "./intermediarios/sensorAuth.js";
 
 const PORT = process.env.PORT ?? 4000;
@@ -45,6 +46,9 @@ iniciarPagos();
 // Después de iniciarEmail()/iniciarPagos(): dispara un envío inmediato al
 // arrancar, así que las claves de Brevo ya deben estar cargadas.
 const tareaCronAvisos = iniciarCronAvisosVencimiento();
+// Después de iniciarTelegram()/iniciarWebPush(): si encuentra lluvia fuerte al
+// arrancar, los canales ya tienen que estar listos para mandar el aviso.
+const tareaCronLluvia = iniciarCronAvisosLluvia();
 advertirSiSensorApiKeyFalta();
 
 // Apagado ordenado: en Render/Railway/Docker, `docker stop`/redeploys mandan
@@ -59,6 +63,7 @@ async function apagar(señal) {
 
   tareaCron.stop();
   tareaCronAvisos.stop();
+  tareaCronLluvia.stop();
   puertoSerial?.close?.();
   await detenerTelegram();
   await cerrarWebSocket();
