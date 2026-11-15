@@ -193,6 +193,7 @@ Corre con el test runner que ya trae Node, sin librerías extra. Prueba la lógi
 | POST   | `/api/push/suscribir` ⏱                            | Guarda una suscripción a notificaciones push                                       |
 | POST   | `/api/push/desuscribir` ⏱                          | Borra una suscripción a notificaciones push                                        |
 | GET    | `/api/alertas/historial?limite=`                   | El historial público de cambios de estado del río                                  |
+| GET    | `/api/alertas/avisos-lluvia?limite=`               | El historial público de avisos preventivos por lluvia fuerte                       |
 
 - 🔒 = necesita el header `x-api-key` si configuraste `SENSOR_API_KEY`.
 - 🔑 = necesita haber iniciado sesión.

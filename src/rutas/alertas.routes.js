@@ -29,6 +29,27 @@ router.get("/historial", async (req, res, next) => {
   }
 });
 
+// Historial de avisos preventivos por lluvia fuerte (ver avisoLluvia.js).
+// Público como /historial: el aviso ya se difundió a todos por Telegram y
+// push, y la app lo usa para mostrar el último aviso al abrirse.
+router.get("/avisos-lluvia", async (req, res, next) => {
+  try {
+    const limite = Math.min(Math.max(Number(req.query.limite) || 20, 1), 100);
+    const { rows } = await pool.query(
+      `SELECT a.id, a.intensidad, a.maxima_mm_h, a.total_mm, a.probabilidad_max, a.hora_maxima,
+              a.mensaje, a.enviado_en, s.codigo AS sensor_codigo, s.nombre AS sensor_nombre
+       FROM avisos_lluvia a
+       JOIN sensores s ON s.id = a.sensor_id
+       ORDER BY a.enviado_en DESC
+       LIMIT $1`,
+      [limite]
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Difusión manual (a diferencia del aviso automático de alertEngine.js, que
 // solo se dispara en un cambio de estado del río): exclusiva de Defensa
 // Civil/COER y administrador -- operario no redacta avisos a la población.
