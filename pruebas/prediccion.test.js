@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { calcularTendencia, evaluarRiesgo } from "../src/servicios/prediccion.js";
 
 const SUBIENDO = { disponible: true, minutosParaAlerta: 40, pendienteCmPorMin: 0.5 };
-const ESTABLE = { disponible: false, motivo: "El nivel no muestra tendencia de subida" };
+const ESTABLE = {
+  disponible: false,
+  motivo: "El nivel no muestra tendencia de subida",
+  pendienteCmPorMin: 0,
+};
 const lluvia = (intensidad, maxima_mm_h = 0) => ({ disponible: true, intensidad, maxima_mm_h });
 
 test("evaluarRiesgo: río subiendo + lluvia fuerte = riesgo alto", () => {
@@ -28,6 +32,14 @@ test("evaluarRiesgo: río estable pero viene lluvia fuerte = medio", () => {
 
 test("evaluarRiesgo: río estable y sin lluvia = bajo", () => {
   assert.equal(evaluarRiesgo(ESTABLE, lluvia("sin_lluvia")).nivel, "bajo");
+});
+
+test("evaluarRiesgo: sin lecturas recientes no dice que el río está estable", () => {
+  const sinDatos = { disponible: false, motivo: "No hay suficientes lecturas recientes" };
+  const riesgo = evaluarRiesgo(sinDatos, lluvia("sin_lluvia"));
+  assert.equal(riesgo.nivel, "bajo");
+  assert.match(riesgo.mensaje, /^Sin lecturas recientes/);
+  assert.match(evaluarRiesgo(ESTABLE, lluvia("sin_lluvia")).mensaje, /^El río está estable/);
 });
 
 test("evaluarRiesgo: si Open-Meteo no respondió, decide solo con el sensor", () => {

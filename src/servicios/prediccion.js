@@ -65,13 +65,17 @@ export function evaluarRiesgo(prediccion, lluvia) {
         : "El río está subiendo (pronóstico de lluvia no disponible).",
     };
   }
+  // calcularTendencia solo devuelve la pendiente cuando hubo lecturas
+  // suficientes; sin ella no se sabe si el río está estable o no.
+  const textoRio =
+    prediccion?.pendienteCmPorMin !== undefined ? "El río está estable" : "Sin lecturas recientes del sensor";
   if (lluviaImportante) {
     return {
       nivel: "medio",
-      mensaje: `El río está estable, pero se pronostica ${textoLluvia}: puede empezar a subir.`,
+      mensaje: `${textoRio}, pero se pronostica ${textoLluvia}: el río puede empezar a subir.`,
     };
   }
-  return { nivel: "bajo", mensaje: "El río está estable y no se pronostica lluvia importante." };
+  return { nivel: "bajo", mensaje: `${textoRio} y no se pronostica lluvia importante.` };
 }
 
 export async function estimarTiempoCrecida(sensorCodigo, { minutos = 30 } = {}) {
