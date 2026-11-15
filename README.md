@@ -18,6 +18,7 @@ En resumen, el servidor se encarga de:
 - Calcular si el nivel del río está subiendo y qué tan rápido.
 - Consultar el pronóstico de lluvia de las próximas 24 h sobre cada sensor (Open-Meteo) y combinarlo con la subida del río en un nivel de riesgo (bajo, medio o alto).
 - Avisar por Telegram y push cuando se pronostica lluvia fuerte, aunque el río todavía esté bajo (revisión automática cada hora).
+- Avisar al equipo (correo a administradores y Defensa Civil, panel admin y los chats de `TELEGRAM_ADMIN_CHAT_IDS`) cuando un sensor pasa más de 30 minutos sin reportar, y otra vez cuando vuelve. Cada caída queda en la tabla `caidas_sensor`.
 - Calcular un puntaje de riesgo de 0 a 100 para la ubicación de cada persona, explicando de dónde sale cada punto:
 
   | Factor   | Puntos | Regla                                                             | Dato                     |
