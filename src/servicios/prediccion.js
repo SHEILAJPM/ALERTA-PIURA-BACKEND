@@ -39,6 +39,41 @@ export function calcularTendencia(puntos, umbralAlertaRoja) {
   };
 }
 
+// Junta lo que mide el sensor (¿el río está subiendo?) con lo que viene del
+// cielo (¿se pronostica lluvia?). Función pura: recibe el resultado de
+// calcularTendencia/estimarTiempoCrecida y el de pronosticoLluvia (o null si
+// Open-Meteo no respondió).
+//   alto  = el río sube Y viene lluvia moderada o fuerte
+//   medio = solo una de las dos cosas
+//   bajo  = ni sube ni viene lluvia importante
+export function evaluarRiesgo(prediccion, lluvia) {
+  const subiendo = Boolean(prediccion?.disponible);
+  const lluviaImportante = ["moderada", "fuerte"].includes(lluvia?.intensidad);
+  const textoLluvia = lluvia ? `lluvia ${lluvia.intensidad} (${lluvia.maxima_mm_h} mm/h)` : null;
+
+  if (subiendo && lluviaImportante) {
+    return {
+      nivel: "alto",
+      mensaje: `El río está subiendo y se pronostica ${textoLluvia} en las próximas horas: la crecida puede llegar antes de lo estimado.`,
+    };
+  }
+  if (subiendo) {
+    return {
+      nivel: "medio",
+      mensaje: lluvia
+        ? "El río está subiendo, aunque no se pronostica lluvia importante."
+        : "El río está subiendo (pronóstico de lluvia no disponible).",
+    };
+  }
+  if (lluviaImportante) {
+    return {
+      nivel: "medio",
+      mensaje: `El río está estable, pero se pronostica ${textoLluvia}: puede empezar a subir.`,
+    };
+  }
+  return { nivel: "bajo", mensaje: "El río está estable y no se pronostica lluvia importante." };
+}
+
 export async function estimarTiempoCrecida(sensorCodigo, { minutos = 30 } = {}) {
   const { rows } = await pool.query(
     `SELECT l.nivel_cm, l.medido_en, s.nivel_alerta_roja_cm

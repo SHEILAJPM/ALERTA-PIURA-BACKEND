@@ -1,6 +1,41 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calcularTendencia } from "../src/servicios/prediccion.js";
+import { calcularTendencia, evaluarRiesgo } from "../src/servicios/prediccion.js";
+
+const SUBIENDO = { disponible: true, minutosParaAlerta: 40, pendienteCmPorMin: 0.5 };
+const ESTABLE = { disponible: false, motivo: "El nivel no muestra tendencia de subida" };
+const lluvia = (intensidad, maxima_mm_h = 0) => ({ disponible: true, intensidad, maxima_mm_h });
+
+test("evaluarRiesgo: río subiendo + lluvia fuerte = riesgo alto", () => {
+  const riesgo = evaluarRiesgo(SUBIENDO, lluvia("fuerte", 9.2));
+  assert.equal(riesgo.nivel, "alto");
+  assert.match(riesgo.mensaje, /lluvia fuerte \(9.2 mm\/h\)/);
+});
+
+test("evaluarRiesgo: río subiendo + lluvia moderada también es alto", () => {
+  assert.equal(evaluarRiesgo(SUBIENDO, lluvia("moderada", 4)).nivel, "alto");
+});
+
+test("evaluarRiesgo: río subiendo sin lluvia importante = medio", () => {
+  assert.equal(evaluarRiesgo(SUBIENDO, lluvia("ligera", 1)).nivel, "medio");
+});
+
+test("evaluarRiesgo: río estable pero viene lluvia fuerte = medio", () => {
+  const riesgo = evaluarRiesgo(ESTABLE, lluvia("fuerte", 12));
+  assert.equal(riesgo.nivel, "medio");
+  assert.match(riesgo.mensaje, /puede empezar a subir/);
+});
+
+test("evaluarRiesgo: río estable y sin lluvia = bajo", () => {
+  assert.equal(evaluarRiesgo(ESTABLE, lluvia("sin_lluvia")).nivel, "bajo");
+});
+
+test("evaluarRiesgo: si Open-Meteo no respondió, decide solo con el sensor", () => {
+  const riesgo = evaluarRiesgo(SUBIENDO, null);
+  assert.equal(riesgo.nivel, "medio");
+  assert.match(riesgo.mensaje, /no disponible/);
+  assert.equal(evaluarRiesgo(ESTABLE, null).nivel, "bajo");
+});
 
 test("calcularTendencia: sin suficientes puntos no está disponible", () => {
   const resultado = calcularTendencia([{ x: 0, y: 5 }], 16);
