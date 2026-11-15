@@ -18,6 +18,17 @@ En resumen, el servidor se encarga de:
 - Calcular si el nivel del río está subiendo y qué tan rápido.
 - Consultar el pronóstico de lluvia de las próximas 24 h sobre cada sensor (Open-Meteo) y combinarlo con la subida del río en un nivel de riesgo (bajo, medio o alto).
 - Avisar por Telegram y push cuando se pronostica lluvia fuerte, aunque el río todavía esté bajo (revisión automática cada hora).
+- Calcular un puntaje de riesgo de 0 a 100 para la ubicación de cada persona, explicando de dónde sale cada punto:
+
+  | Factor   | Puntos | Regla                                                             | Dato                     |
+  | -------- | ------ | ----------------------------------------------------------------- | ------------------------ |
+  | Río      | 0 a 40 | % del límite de alerta roja × 30, +10 si está subiendo            | Sensor (últimos 30 min)  |
+  | Lluvia   | 0 a 25 | ligera 5 · moderada 15 · fuerte 25, multiplicado por probabilidad | Open-Meteo               |
+  | Zona     | 0 a 25 | zona de riesgo alto 25 · medio 15 · bajo 5                        | `zonas_riesgo` (PostGIS) |
+  | Albergue | −5     | si hay uno con espacio a menos de 2 km                            | `albergues` (PostGIS)    |
+
+  Menos de 35 es riesgo bajo, de 35 a 64 medio y desde 65 alto. Si el sensor no reporta o no hay pronóstico, la respuesta trae `datos_completos: false` para que la app no dé una falsa tranquilidad.
+
 - Avisar por WebSocket a la página web cuando algo cambia.
 - Mandar alertas por Telegram.
 
@@ -174,6 +185,7 @@ Corre con el test runner que ya trae Node, sin librerías extra. Prueba la lógi
 | GET    | `/api/lecturas?sensor=&minutos=`                   | Historial de mediciones (por defecto, últimos 180 minutos)                         |
 | GET    | `/api/lecturas/ultima?sensor=`                     | Última medición, predicción de crecida, pronóstico de lluvia y riesgo combinado    |
 | GET    | `/api/lecturas/lluvia?sensor=`                     | Pronóstico de lluvia de las próximas 24 h sobre el sensor (Open-Meteo)             |
+| GET    | `/api/riesgo?sensor=&lat=&lon=`                    | Puntaje de riesgo de 0 a 100 que explica cada factor y de qué dato viene           |
 | POST   | `/api/lecturas` 🔒⏱                                | Registra una medición nueva. La usan el simulador y el ESP32                       |
 | GET    | `/api/albergues`                                   | Lista de albergues activos                                                         |
 | POST   | `/api/albergues` 👷⏱                               | Crea un albergue nuevo                                                             |
