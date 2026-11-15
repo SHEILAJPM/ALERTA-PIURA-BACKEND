@@ -34,7 +34,7 @@ function clienteFalso({ sensor, ultimoEstado, fallarEn } = {}) {
     async query(sql) {
       const texto = sql.trim();
       consultas.push(texto.split(/\s+/).slice(0, 3).join(" "));
-      if (fallarEn && texto.startsWith(fallarEn)) throw new Error("falla simulada");
+      if (fallarEn && texto.startsWith(fallarEn)) throw new Error("falla forzada");
       if (texto.includes("FROM sensores")) return { rows: sensor ? [sensor] : [] };
       if (texto.startsWith("INSERT INTO lecturas")) return { rows: [{ id: 1, medido_en: new Date() }] };
       if (texto.includes("FROM eventos_alerta"))
@@ -73,7 +73,7 @@ test("procesarLectura: si algo falla hace ROLLBACK y libera la conexión", async
   const cliente = clienteFalso({ sensor: SENSOR, fallarEn: "INSERT INTO lecturas" });
   t.mock.method(pool, "connect", async () => cliente);
 
-  await assert.rejects(procesarLectura({ sensorCodigo: "RIO-PIURA-01", nivelCm: 5 }), /falla simulada/);
+  await assert.rejects(procesarLectura({ sensorCodigo: "RIO-PIURA-01", nivelCm: 5 }), /falla forzada/);
   assert.equal(cliente.consultas.at(-1), "ROLLBACK");
   assert.ok(cliente.liberado);
 });
