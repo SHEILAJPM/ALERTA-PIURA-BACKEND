@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { pool } from "../../bd/pool.js";
 import { procesarLectura } from "../servicios/alertEngine.js";
-import { estimarTiempoCrecida } from "../servicios/prediccion.js";
+import { estimarTiempoCrecida, evaluarRiesgo } from "../servicios/prediccion.js";
+import { pronosticoParaSensor } from "../servicios/pronosticoLluvia.js";
 import { transmitir } from "../servicios/websocket.js";
 import { avisarCambioEstado } from "../servicios/avisos.js";
 import { validarBody } from "../intermediarios/validate.js";
@@ -26,8 +27,31 @@ router.get("/ultima", async (req, res, next) => {
       return res.status(404).json({ error: "Sin lecturas todavía para este sensor" });
     }
 
-    const prediccion = await estimarTiempoCrecida(sensorCodigo);
-    res.json({ ...rows[0], prediccion });
+    // En paralelo: el pronóstico sale del cache casi siempre, pero si toca
+    // pedirlo a Open-Meteo no debe sumar su espera a la de la predicción.
+    const [prediccion, lluvia] = await Promise.all([
+      estimarTiempoCrecida(sensorCodigo),
+      pronosticoParaSensor(sensorCodigo),
+    ]);
+    res.json({ ...rows[0], prediccion, lluvia, riesgo: evaluarRiesgo(prediccion, lluvia) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Solo el pronóstico de lluvia de las próximas 24 h sobre el sensor.
+router.get("/lluvia", async (req, res, next) => {
+  try {
+    const sensorCodigo = req.query.sensor ?? SENSOR_POR_DEFECTO;
+    const { rowCount } = await pool.query(`SELECT 1 FROM sensores WHERE codigo = $1`, [sensorCodigo]);
+    if (rowCount === 0) {
+      return res.status(404).json({ error: "Sensor no encontrado" });
+    }
+    const lluvia = await pronosticoParaSensor(sensorCodigo);
+    if (!lluvia) {
+      return res.status(503).json({ error: "Pronóstico de lluvia no disponible en este momento" });
+    }
+    res.json({ sensor: sensorCodigo, fuente: "Open-Meteo", ...lluvia });
   } catch (err) {
     next(err);
   }
