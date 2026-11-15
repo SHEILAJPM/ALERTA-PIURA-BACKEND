@@ -237,3 +237,28 @@ export async function enviarCorreoVencimientoPoliza(correo, fechaFin) {
     avisoDev: { correo, fechaFin },
   });
 }
+
+// Aviso técnico al equipo (ver sensorCaido.js): un sensor dejó de reportar
+// o volvió. No depende de email_habilitado: ese interruptor apaga los avisos
+// a la población, y este es para quien mantiene el sistema.
+function escaparHtml(texto) {
+  return String(texto)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function enviarCorreoEstadoSensor(correo, { asunto, titulo, texto }) {
+  const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
+  return enviarCorreo({
+    correo,
+    asunto: `${asunto} — Piura Alerta`,
+    html: plantillaCorreo(`
+      <h2 style="margin:0 0 16px;font-size:20px;color:${COLOR_PRIMARIO};">${escaparHtml(titulo)}</h2>
+      <p style="margin:0 0 20px;">${escaparHtml(texto)}</p>
+      ${botonCorreo(`${frontendUrl}/admin/sensores`, "Ver sensores en el panel")}
+    `),
+    avisoDev: { correo, asunto },
+  });
+}

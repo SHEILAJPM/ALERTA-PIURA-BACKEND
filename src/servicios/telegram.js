@@ -164,3 +164,20 @@ export async function notificarCambioEstado(evento) {
   // manual, que no es "automática").
   await pool.query("UPDATE eventos_alerta SET notificado_telegram = true WHERE id = $1", [evento.id]);
 }
+
+// Chats del equipo (TELEGRAM_ADMIN_CHAT_IDS, separados por coma), aparte de
+// los suscriptores ciudadanos: avisos técnicos como "el sensor dejó de
+// reportar" son para quien puede ir a revisarlo, no para alarmar a la gente.
+export function chatsAdministradores(valor = process.env.TELEGRAM_ADMIN_CHAT_IDS) {
+  return (valor ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => /^-?\d+$/.test(id));
+}
+
+export async function avisarAdministradoresTelegram(mensaje) {
+  if (!bot) return 0;
+  const chats = chatsAdministradores();
+  if (chats.length === 0) return 0;
+  return enviarATodos(chats, mensaje);
+}
