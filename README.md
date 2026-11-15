@@ -16,6 +16,7 @@ En resumen, el servidor se encarga de:
 - Recibir los datos que manda el ESP32.
 - Guardar el historial de mediciones.
 - Calcular si el nivel del río está subiendo y qué tan rápido.
+- Consultar el pronóstico de lluvia de las próximas 24 h sobre cada sensor (Open-Meteo) y combinarlo con la subida del río en un nivel de riesgo (bajo, medio o alto).
 - Avisar por WebSocket a la página web cuando algo cambia.
 - Mandar alertas por Telegram.
 
@@ -47,6 +48,7 @@ El backend recibe el dato
 - **PostgreSQL + PostGIS** — para guardar los datos y las ubicaciones en el mapa.
 - **WebSocket (ws)** — para mandar avisos en tiempo real.
 - **Telegram Bot API** — para las alertas por chat.
+- **Open-Meteo** — pronóstico de lluvia por hora (gratis, sin API key).
 
 ## Cómo configurarlo
 
@@ -168,7 +170,8 @@ Corre con el test runner que ya trae Node, sin librerías extra. Prueba la lógi
 | GET    | `/health`                                          | Dice si el servidor y la base de datos están funcionando                           |
 | GET    | `/api/sensores`                                    | Lista de sensores registrados                                                      |
 | GET    | `/api/lecturas?sensor=&minutos=`                   | Historial de mediciones (por defecto, últimos 180 minutos)                         |
-| GET    | `/api/lecturas/ultima?sensor=`                     | Última medición y una predicción de cuánto puede tardar en crecer el río           |
+| GET    | `/api/lecturas/ultima?sensor=`                     | Última medición, predicción de crecida, pronóstico de lluvia y riesgo combinado    |
+| GET    | `/api/lecturas/lluvia?sensor=`                     | Pronóstico de lluvia de las próximas 24 h sobre el sensor (Open-Meteo)             |
 | POST   | `/api/lecturas` 🔒⏱                                | Registra una medición nueva. La usan el simulador y el ESP32                       |
 | GET    | `/api/albergues`                                   | Lista de albergues activos                                                         |
 | POST   | `/api/albergues` 👷⏱                               | Crea un albergue nuevo                                                             |
