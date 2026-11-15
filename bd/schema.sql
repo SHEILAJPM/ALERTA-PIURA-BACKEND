@@ -498,3 +498,18 @@ CREATE TABLE IF NOT EXISTS avisos_lluvia (
 );
 
 CREATE INDEX IF NOT EXISTS idx_avisos_lluvia_sensor_enviado ON avisos_lluvia (sensor_id, enviado_en DESC);
+
+-- Caídas de sensores (ver src/servicios/sensorCaido.js): una fila por cada
+-- vez que un sensor dejó de reportar más de 30 min. `hasta` NULL = sigue
+-- caído. Sirve para avisar al equipo una sola vez por caída (sobrevive a los
+-- reinicios del servidor) y como historial de cuánto tiempo estuvo sin señal.
+CREATE TABLE IF NOT EXISTS caidas_sensor (
+  id BIGSERIAL PRIMARY KEY,
+  sensor_id UUID NOT NULL REFERENCES sensores(id),
+  desde TIMESTAMPTZ NOT NULL,
+  hasta TIMESTAMPTZ,
+  avisado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_caidas_sensor_abierta
+  ON caidas_sensor (sensor_id) WHERE hasta IS NULL;
