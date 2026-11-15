@@ -16,5 +16,12 @@ export default [
       "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
+  {
+    // Los scripts de k6 no corren en Node: k6 inyecta sus propias globales.
+    files: ["pruebas-carga/**/*.js"],
+    languageOptions: {
+      globals: { __ENV: "readonly", __VU: "readonly", __ITER: "readonly" },
+    },
+  },
   prettierConfig,
 ];
