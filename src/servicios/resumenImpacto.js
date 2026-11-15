@@ -9,6 +9,7 @@ export function construirResumenImpacto({
   reportesPorEstado,
   polizasVigentes,
   chequeosUltimas24h,
+  avisosLluvia = 0,
 }) {
   const usuariosPorRolObj = Object.fromEntries(usuariosPorRol.map((r) => [r.rol, r.cantidad]));
   const reportesPorEstadoObj = Object.fromEntries(reportesPorEstado.map((r) => [r.estado, r.cantidad]));
@@ -19,6 +20,7 @@ export function construirResumenImpacto({
     suscriptores_telegram: suscriptoresTelegram,
     suscriptores_push: suscriptoresPush,
     alertas_automaticas_enviadas: alertasEnviadas,
+    avisos_lluvia_enviados: avisosLluvia,
     reportes_totales: reportesPorEstado.reduce((acc, r) => acc + r.cantidad, 0),
     reportes_por_estado: reportesPorEstadoObj,
     polizas_vigentes: polizasVigentes,

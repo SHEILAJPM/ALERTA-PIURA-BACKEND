@@ -57,3 +57,11 @@ test("construirResumenImpacto: sin usuarios ni reportes, los totales son 0 y los
   assert.equal(resumen.reportes_totales, 0);
   assert.deepEqual(resumen.reportes_por_estado, {});
 });
+
+test("construirResumenImpacto: incluye los avisos de lluvia enviados", () => {
+  assert.equal(construirResumenImpacto(entradaBase({ avisosLluvia: 3 })).avisos_lluvia_enviados, 3);
+});
+
+test("construirResumenImpacto: sin dato de avisos de lluvia, cuenta 0", () => {
+  assert.equal(construirResumenImpacto(entradaBase()).avisos_lluvia_enviados, 0);
+});
