@@ -33,3 +33,22 @@ export function resumirReportesSalud(filas) {
     zonas: [...zonas.values()].sort((a, b) => b.personas - a.personas),
   };
 }
+
+// Igual que el resumen de salud, para los avisos de agua (cada aviso es un hogar).
+export function resumirReportesAgua(filas) {
+  const porTipo = {};
+  const zonas = new Map();
+  for (const f of filas) {
+    porTipo[f.tipo] = (porTipo[f.tipo] ?? 0) + 1;
+    const clave = `${f.lat},${f.lon}`;
+    const zona = zonas.get(clave) ?? { lat: f.lat, lon: f.lon, avisos: 0, tipos: {} };
+    zona.avisos += 1;
+    zona.tipos[f.tipo] = (zona.tipos[f.tipo] ?? 0) + 1;
+    zonas.set(clave, zona);
+  }
+  return {
+    avisos: filas.length,
+    por_tipo: porTipo,
+    zonas: [...zonas.values()].sort((a, b) => b.avisos - a.avisos),
+  };
+}

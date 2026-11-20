@@ -1,7 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { redondearUbicacion, resumirReportesSalud } from "../src/servicios/reportesSalud.js";
-import { reporteSaludSchema } from "../src/validacion/schemas.js";
+import {
+  redondearUbicacion,
+  resumirReportesSalud,
+  resumirReportesAgua,
+} from "../src/servicios/reportesSalud.js";
+import {
+  reporteSaludSchema,
+  reporteAguaSchema,
+  perfilSchema,
+  usoContenidoSchema,
+} from "../src/validacion/schemas.js";
 
 test("redondearUbicacion: lleva el punto a una grilla de ~500 m", () => {
   const z = redondearUbicacion({ lon: -80.62664, lat: -5.19714 });
@@ -51,4 +60,38 @@ test("reporteSaludSchema: rechaza enfermedades desconocidas y cantidades fuera d
     reporteSaludSchema.safeParse({ enfermedad: "piel", personas: 50, lon: -80.6, lat: -5.2 }).success,
     false
   );
+});
+
+test("resumirReportesAgua: cuenta hogares por tipo y por zona", () => {
+  const r = resumirReportesAgua([
+    { tipo: "sin_agua", lon: -80.625, lat: -5.195 },
+    { tipo: "sin_agua", lon: -80.625, lat: -5.195 },
+    { tipo: "agua_turbia", lon: -80.61, lat: -5.2 },
+  ]);
+  assert.equal(r.avisos, 3);
+  assert.deepEqual(r.por_tipo, { sin_agua: 2, agua_turbia: 1 });
+  assert.equal(r.zonas[0].avisos, 2);
+});
+
+test("reporteAguaSchema: acepta tipos válidos y rechaza campos extra", () => {
+  assert.equal(reporteAguaSchema.safeParse({ tipo: "agua_turbia", lon: -80.6, lat: -5.2 }).success, true);
+  assert.equal(reporteAguaSchema.safeParse({ tipo: "inundada", lon: -80.6, lat: -5.2 }).success, false);
+  assert.equal(
+    reporteAguaSchema.safeParse({ tipo: "sin_agua", lon: -80.6, lat: -5.2, direccion: "Jr. Lima 123" })
+      .success,
+    false
+  );
+});
+
+test("perfilSchema: sexo y año de nacimiento son opcionales y se pueden borrar con null", () => {
+  assert.equal(perfilSchema.safeParse({ sexo: "mujer", anio_nacimiento: 1960 }).success, true);
+  assert.equal(perfilSchema.safeParse({ sexo: null, anio_nacimiento: null }).success, true);
+  assert.equal(perfilSchema.safeParse({ sexo: "x" }).success, false);
+  assert.equal(perfilSchema.safeParse({ anio_nacimiento: new Date().getFullYear() + 1 }).success, false);
+});
+
+test("usoContenidoSchema: acepta plan creado y quiz completado", () => {
+  assert.equal(usoContenidoSchema.safeParse({ recurso: "plan", accion: "creado" }).success, true);
+  assert.equal(usoContenidoSchema.safeParse({ recurso: "quiz", accion: "completado" }).success, true);
+  assert.equal(usoContenidoSchema.safeParse({ recurso: "otro", accion: "visita" }).success, false);
 });

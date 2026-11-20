@@ -573,9 +573,54 @@ CREATE INDEX IF NOT EXISTS idx_reportes_salud_creado ON reportes_salud (creado_e
 -- persona que recarga la página no infla la cifra. Ver rutas/uso.routes.js.
 CREATE TABLE IF NOT EXISTS uso_contenido (
   id BIGSERIAL PRIMARY KEY,
-  recurso VARCHAR(20) NOT NULL CHECK (recurso IN ('agricultura', 'laboratorio')),
-  accion VARCHAR(20) NOT NULL CHECK (accion IN ('visita', 'simulacion')),
+  recurso VARCHAR(20) NOT NULL,
+  accion VARCHAR(20) NOT NULL,
   creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_uso_contenido_creado ON uso_contenido (creado_en DESC);
+
+-- Restricciones aparte (y re-creadas) para poder sumar contenidos nuevos sin
+-- borrar la tabla: plan familiar (11.5 / 13.3) y quiz de preparación (4.7).
+ALTER TABLE uso_contenido DROP CONSTRAINT IF EXISTS uso_contenido_recurso_check;
+ALTER TABLE uso_contenido ADD CONSTRAINT uso_contenido_recurso_check
+  CHECK (recurso IN ('agricultura', 'laboratorio', 'plan', 'quiz'));
+ALTER TABLE uso_contenido DROP CONSTRAINT IF EXISTS uso_contenido_accion_check;
+ALTER TABLE uso_contenido ADD CONSTRAINT uso_contenido_accion_check
+  CHECK (accion IN ('visita', 'simulacion', 'creado', 'completado'));
+
+-- ============================================================
+-- 9. Sexo y edad opcionales (ODS 5 y 10.2; desglose que pide Sendai)
+-- ============================================================
+
+-- Opcionales y solo para estadísticas agregadas del panel ODS: nunca se
+-- muestran a nadie. Año de nacimiento (no la fecha) porque basta para saber
+-- si alguien es adulto mayor.
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS sexo VARCHAR(20);
+DO $$ BEGIN
+  ALTER TABLE usuarios ADD CONSTRAINT usuarios_sexo_check
+    CHECK (sexo IS NULL OR sexo IN ('mujer', 'hombre', 'otro', 'prefiero_no_decir'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS anio_nacimiento SMALLINT;
+DO $$ BEGIN
+  ALTER TABLE usuarios ADD CONSTRAINT usuarios_anio_nacimiento_check
+    CHECK (anio_nacimiento IS NULL OR anio_nacimiento BETWEEN 1900 AND 2100);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ============================================================
+-- 10. Avisos de agua (ODS 6.1)
+-- ============================================================
+
+-- Aviso ANÓNIMO de problemas con el agua de la casa tras el fenómeno: sin
+-- usuario, sin texto libre. Ubicación redondeada a ~500 m, igual que los
+-- avisos de salud. El resumen solo lo ven Defensa Civil y administradores.
+CREATE TABLE IF NOT EXISTS reportes_agua (
+  id BIGSERIAL PRIMARY KEY,
+  tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('sin_agua', 'agua_turbia', 'agua_olor')),
+  ubicacion GEOMETRY(Point, 4326) NOT NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reportes_agua_creado ON reportes_agua (creado_en DESC);

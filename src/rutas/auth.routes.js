@@ -168,7 +168,8 @@ router.get("/yo", requerirSesion, async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, nombre, dni, telefono, direccion, correo, rol, recibir_alertas_sms,
-              sensor_interes_id, correo_verificado, creado_en, apoyo_evacuacion, apoyo_consentido_en
+              sensor_interes_id, correo_verificado, creado_en, apoyo_evacuacion, apoyo_consentido_en,
+              sexo, anio_nacimiento
        FROM usuarios WHERE id = $1`,
       [req.usuario.id]
     );
@@ -198,6 +199,10 @@ router.patch("/yo", requerirSesion, validarBody(perfilSchema), async (req, res, 
     // completa (sin repetidos). Lista vacía = retira el consentimiento.
     const tocaApoyo = Array.isArray(req.body.apoyo_evacuacion);
     const apoyo = tocaApoyo ? [...new Set(req.body.apoyo_evacuacion)] : [];
+    // Sexo y año de nacimiento: opcionales; null = borrar el dato. Igual que
+    // sensor_interes_id, hay que distinguir "no vino" de "vino como null".
+    const tocaSexo = "sexo" in req.body;
+    const tocaAnio = "anio_nacimiento" in req.body;
 
     if (recibirSMS === true) {
       // No se puede activar el opt-in sin un teléfono al que mandar el SMS
@@ -222,10 +227,13 @@ router.patch("/yo", requerirSesion, validarBody(perfilSchema), async (req, res, 
              WHEN NOT $8 THEN apoyo_consentido_en
              WHEN cardinality($9::text[]) = 0 THEN NULL
              ELSE now()
-           END
+           END,
+           sexo = CASE WHEN $10 THEN $11::varchar ELSE sexo END,
+           anio_nacimiento = CASE WHEN $12 THEN $13::smallint ELSE anio_nacimiento END
        WHERE id = $1
        RETURNING id, nombre, dni, telefono, direccion, correo, rol, recibir_alertas_sms,
-                 sensor_interes_id, correo_verificado, creado_en, apoyo_evacuacion, apoyo_consentido_en`,
+                 sensor_interes_id, correo_verificado, creado_en, apoyo_evacuacion, apoyo_consentido_en,
+              sexo, anio_nacimiento`,
       [
         req.usuario.id,
         nombre ?? null,
@@ -236,6 +244,10 @@ router.patch("/yo", requerirSesion, validarBody(perfilSchema), async (req, res, 
         sensorInteres,
         tocaApoyo,
         apoyo,
+        tocaSexo,
+        req.body.sexo ?? null,
+        tocaAnio,
+        req.body.anio_nacimiento ?? null,
       ]
     );
     res.json(rows[0]);

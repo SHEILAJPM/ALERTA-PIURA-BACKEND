@@ -109,6 +109,15 @@ export const perfilSchema = z
     sensor_interes_id: z.string().uuid().nullable().optional(),
     // [] = retirar el consentimiento y borrar lo registrado.
     apoyo_evacuacion: z.array(z.enum(TIPOS_APOYO_EVACUACION)).max(TIPOS_APOYO_EVACUACION.length).optional(),
+    // Opcionales, solo para estadísticas agregadas (null = borrar el dato).
+    sexo: z.enum(["mujer", "hombre", "otro", "prefiero_no_decir"]).nullable().optional(),
+    anio_nacimiento: z
+      .number()
+      .int()
+      .min(1900)
+      .refine((a) => a <= new Date().getFullYear(), "no puede ser un año futuro")
+      .nullable()
+      .optional(),
   })
   .refine((datos) => Object.values(datos).some((v) => v !== undefined), {
     message: "Nada para actualizar",
@@ -356,7 +365,16 @@ export const reporteSaludSchema = z
 // Conteo anónimo de uso de contenidos (ver uso_contenido en bd/schema.sql).
 export const usoContenidoSchema = z
   .object({
-    recurso: z.enum(["agricultura", "laboratorio"]),
-    accion: z.enum(["visita", "simulacion"]),
+    recurso: z.enum(["agricultura", "laboratorio", "plan", "quiz"]),
+    accion: z.enum(["visita", "simulacion", "creado", "completado"]),
+  })
+  .strict();
+
+// Aviso anónimo de problemas con el agua (ver reportes_agua en bd/schema.sql).
+export const reporteAguaSchema = z
+  .object({
+    tipo: z.enum(["sin_agua", "agua_turbia", "agua_olor"]),
+    lon,
+    lat,
   })
   .strict();
