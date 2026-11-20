@@ -66,6 +66,8 @@ export function construirIndicadoresODS({
   apoyo = {},
   avisosSalud = {},
   usoContenido = [],
+  demografia = {},
+  avisosAgua = {},
   ahora = new Date(),
 }) {
   const anticipacion = resumirAnticipacion(alertasRojas);
@@ -157,6 +159,17 @@ export function construirIndicadoresODS({
             porcentaje(reportes.verificados ?? 0, reportes.total ?? 0),
             { unidad: "%", meta: "11.3", ayuda: "Reportes que un moderador confirmó como reales." }
           ),
+          indicador(
+            "planes_familiares",
+            "Planes familiares de emergencia creados (30 días)",
+            uso("plan", "creado").ultimos_30d,
+            {
+              meta: "11.5",
+              ayuda: `Familias que armaron su plan: punto de encuentro, contactos y quién hace qué. Desde el inicio: ${
+                uso("plan", "creado").total
+              }.`,
+            }
+          ),
         ],
       },
       {
@@ -219,6 +232,28 @@ export function construirIndicadoresODS({
             meta: "10.2",
             ayuda: "Pedidos de auxilio que llegaron marcados como prioritarios.",
           }),
+          indicador("adultos_mayores", "Personas de 60 años o más registradas", demografia.mayores_60 ?? 0, {
+            meta: "10.2",
+            ayuda: `Entre las ${demografia.con_edad ?? 0} personas que indicaron su año de nacimiento (dato opcional).`,
+          }),
+        ],
+      },
+      {
+        numero: 5,
+        titulo: "Igualdad de género",
+        indicadores: [
+          indicador(
+            "mujeres_registradas",
+            "Mujeres entre las personas registradas",
+            porcentaje(demografia.mujeres ?? 0, demografia.con_sexo ?? 0),
+            {
+              unidad: "%",
+              meta: "5.b",
+              ayuda: `${demografia.mujeres ?? 0} de ${
+                demografia.con_sexo ?? 0
+              } personas que indicaron su sexo (dato opcional). Uso de la tecnología por las mujeres para protegerse a sí mismas y a su familia.`,
+            }
+          ),
         ],
       },
       {
@@ -247,6 +282,18 @@ export function construirIndicadoresODS({
               }.`,
             }
           ),
+        ],
+      },
+      {
+        numero: 6,
+        titulo: "Agua limpia y saneamiento",
+        indicadores: [
+          indicador("avisos_agua", "Avisos de problemas con el agua (30 días)", avisosAgua.avisos_30d ?? 0, {
+            meta: "6.1",
+            ayuda: `Hogares que avisaron que no tienen agua o que sale turbia o con olor; ${
+              avisosAgua.sin_agua_30d ?? 0
+            } sin agua. Ayuda a priorizar cisternas y la revisión de la red.`,
+          }),
         ],
       },
       {
@@ -289,6 +336,17 @@ export function construirIndicadoresODS({
               ayuda: `Personas que exploraron cómo una lluvia se convierte en crecida; ${
                 uso("laboratorio", "simulacion").ultimos_30d
               } reprodujeron o crearon un escenario. Desde el inicio: ${uso("laboratorio", "visita").total} sesiones.`,
+            }
+          ),
+          indicador(
+            "quizzes_completados",
+            "Quizzes de preparación completados (30 días)",
+            uso("quiz", "completado").ultimos_30d,
+            {
+              meta: "4.7",
+              ayuda: `Personas, por ejemplo en charlas de colegios, que respondieron el quiz "¿Estás preparado?". Desde el inicio: ${
+                uso("quiz", "completado").total
+              }.`,
             }
           ),
         ],

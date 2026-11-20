@@ -64,7 +64,7 @@ test("construirIndicadoresODS: agrupa por ODS con meta y marca los de Sendai", (
   });
   assert.deepEqual(
     r.ods.map((o) => o.numero),
-    [11, 13, 9, 10, 3, 1, 2, 4, 17]
+    [11, 13, 9, 10, 5, 3, 6, 1, 2, 4, 17]
   );
   assert.equal(r.generado_en, "2026-11-19T12:00:00.000Z");
   const anticipacion = buscar(r, "anticipacion_mediana");
@@ -130,4 +130,26 @@ test("construirIndicadoresODS: sin uso registrado, los indicadores de ODS 2 y 4 
   const r = construirIndicadoresODS({});
   assert.equal(buscar(r, "consultas_agricultura").valor, 0);
   assert.equal(buscar(r, "sesiones_laboratorio").valor, 0);
+});
+
+test("construirIndicadoresODS: ODS 5, 6 y desglose por edad, con datos opcionales", () => {
+  const r = construirIndicadoresODS({
+    demografia: { mujeres: 30, con_sexo: 50, mayores_60: 8, con_edad: 40 },
+    avisosAgua: { avisos_30d: 6, sin_agua_30d: 4 },
+    usoContenido: [
+      { recurso: "plan", accion: "creado", ultimos_30d: 9, total: 15 },
+      { recurso: "quiz", accion: "completado", ultimos_30d: 22, total: 60 },
+    ],
+  });
+  assert.equal(buscar(r, "mujeres_registradas").valor, 60);
+  assert.equal(buscar(r, "mujeres_registradas").meta, "5.b");
+  assert.equal(buscar(r, "adultos_mayores").valor, 8);
+  assert.equal(buscar(r, "avisos_agua").valor, 6);
+  assert.match(buscar(r, "avisos_agua").ayuda, /4 sin agua/);
+  assert.equal(buscar(r, "planes_familiares").valor, 9);
+  assert.equal(buscar(r, "quizzes_completados").valor, 22);
+});
+
+test("construirIndicadoresODS: sin nadie que indique su sexo, el porcentaje queda sin datos (null)", () => {
+  assert.equal(buscar(construirIndicadoresODS({}), "mujeres_registradas").valor, null);
 });

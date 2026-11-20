@@ -56,30 +56,31 @@ router.get("/", requerirSesion, requerirRol("administrador", "defensa_civil"), a
 // Indicadores alineados a los ODS y a la Meta G del Marco de Sendai (ver
 // servicios/indicadoresODS.js). Igual que el resumen de arriba: solo consulta
 // tablas que ya existen, no registra nada nuevo.
-router.get("/ods", requerirSesion, requerirRol("administrador", "defensa_civil"), async (_req, res, next) => {
-  try {
-    const [
-      alertasRojas,
-      eventosPorEstado,
-      telegram,
-      push,
-      sms,
-      albergues,
-      sos,
-      sensoresActivos,
-      caidas,
-      reportes,
-      polizas,
-      avisosLluvia,
-      chequeos,
-      apoyo,
-      avisosSalud,
-      usoContenido,
-    ] = await Promise.all([
-      // Para cada alerta roja: el evento inmediatamente anterior del mismo
-      // sensor. Si fue una prealerta, la diferencia es el tiempo de anticipación.
-      pool.query(
-        `SELECT CASE WHEN previo.estado_nuevo = 'prealerta'
+async function consultarIndicadoresODS() {
+  const [
+    alertasRojas,
+    eventosPorEstado,
+    telegram,
+    push,
+    sms,
+    albergues,
+    sos,
+    sensoresActivos,
+    caidas,
+    reportes,
+    polizas,
+    avisosLluvia,
+    chequeos,
+    apoyo,
+    avisosSalud,
+    usoContenido,
+    demografia,
+    avisosAgua,
+  ] = await Promise.all([
+    // Para cada alerta roja: el evento inmediatamente anterior del mismo
+    // sensor. Si fue una prealerta, la diferencia es el tiempo de anticipación.
+    pool.query(
+      `SELECT CASE WHEN previo.estado_nuevo = 'prealerta'
                      THEN EXTRACT(EPOCH FROM (r.iniciado_en - previo.iniciado_en)) / 60
                 END AS minutos_desde_prealerta
          FROM eventos_alerta r
@@ -91,99 +92,135 @@ router.get("/ods", requerirSesion, requerirRol("administrador", "defensa_civil")
            LIMIT 1
          ) previo ON true
          WHERE r.estado_nuevo = 'alerta_roja'`
-      ),
-      pool.query("SELECT estado_nuevo, count(*)::int AS cantidad FROM eventos_alerta GROUP BY estado_nuevo"),
-      pool.query("SELECT count(*)::int AS cantidad FROM suscriptores_telegram WHERE activo = true"),
-      pool.query("SELECT count(*)::int AS cantidad FROM push_subscriptions"),
-      pool.query(
-        "SELECT count(*)::int AS cantidad FROM usuarios WHERE recibir_alertas_sms = true AND telefono IS NOT NULL AND activo = true"
-      ),
-      pool.query(
-        `SELECT count(*)::int AS cantidad, COALESCE(sum(capacidad), 0)::int AS capacidad,
+    ),
+    pool.query("SELECT estado_nuevo, count(*)::int AS cantidad FROM eventos_alerta GROUP BY estado_nuevo"),
+    pool.query("SELECT count(*)::int AS cantidad FROM suscriptores_telegram WHERE activo = true"),
+    pool.query("SELECT count(*)::int AS cantidad FROM push_subscriptions"),
+    pool.query(
+      "SELECT count(*)::int AS cantidad FROM usuarios WHERE recibir_alertas_sms = true AND telefono IS NOT NULL AND activo = true"
+    ),
+    pool.query(
+      `SELECT count(*)::int AS cantidad, COALESCE(sum(capacidad), 0)::int AS capacidad,
                 COALESCE(sum(ocupacion_actual), 0)::int AS ocupacion
          FROM albergues WHERE activo = true`
-      ),
-      pool.query(
-        `SELECT count(*)::int AS total,
+    ),
+    pool.query(
+      `SELECT count(*)::int AS total,
                 count(*) FILTER (WHERE estado = 'atendido')::int AS atendidos,
                 percentile_cont(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (atendido_en - creado_en)) / 60)
                   FILTER (WHERE atendido_en IS NOT NULL) AS mediana_minutos
          FROM alertas_sos`
-      ),
-      pool.query("SELECT count(*)::int AS cantidad FROM sensores WHERE activo = true"),
-      // Horas sin señal dentro de los últimos 30 días (una caída abierta
-      // cuenta hasta ahora; una que empezó antes de la ventana, desde su inicio).
-      pool.query(
-        `SELECT count(*)::int AS caidas,
+    ),
+    pool.query("SELECT count(*)::int AS cantidad FROM sensores WHERE activo = true"),
+    // Horas sin señal dentro de los últimos 30 días (una caída abierta
+    // cuenta hasta ahora; una que empezó antes de la ventana, desde su inicio).
+    pool.query(
+      `SELECT count(*)::int AS caidas,
                 COALESCE(sum(EXTRACT(EPOCH FROM (
                   COALESCE(c.hasta, now()) - GREATEST(c.desde, now() - interval '30 days')
                 ))) / 3600, 0) AS horas
          FROM caidas_sensor c
          JOIN sensores s ON s.id = c.sensor_id AND s.activo = true
          WHERE COALESCE(c.hasta, now()) > now() - interval '30 days'`
-      ),
-      pool.query(
-        `SELECT count(*)::int AS total,
+    ),
+    pool.query(
+      `SELECT count(*)::int AS total,
                 count(*) FILTER (WHERE estado = 'verificado')::int AS verificados,
                 count(*) FILTER (WHERE categoria = 'agua_estancada' AND estado <> 'descartado')::int AS agua_estancada,
                 count(*) FILTER (WHERE categoria = 'agua_estancada' AND estado <> 'descartado'
                                    AND creado_en > now() - interval '30 days')::int AS agua_estancada_30d
          FROM reportes_ciudadanos`
-      ),
-      pool.query("SELECT count(*)::int AS cantidad FROM polizas_seguro WHERE fecha_fin > now()"),
-      pool.query("SELECT count(*)::int AS cantidad FROM avisos_lluvia"),
-      pool.query("SELECT count(*)::int AS cantidad FROM chequeos_seguridad"),
-      pool.query(
-        `SELECT
+    ),
+    pool.query("SELECT count(*)::int AS cantidad FROM polizas_seguro WHERE fecha_fin > now()"),
+    pool.query("SELECT count(*)::int AS cantidad FROM avisos_lluvia"),
+    pool.query("SELECT count(*)::int AS cantidad FROM chequeos_seguridad"),
+    pool.query(
+      `SELECT
            (SELECT count(*)::int FROM usuarios
             WHERE cardinality(apoyo_evacuacion) > 0 AND activo = true) AS personas,
            (SELECT count(*)::int FROM alertas_sos s JOIN usuarios u ON u.id = s.usuario_id
             WHERE cardinality(u.apoyo_evacuacion) > 0) AS sos`
-      ),
-      pool.query(
-        `SELECT count(*)::int AS avisos_30d, COALESCE(sum(personas), 0)::int AS personas_30d
+    ),
+    pool.query(
+      `SELECT count(*)::int AS avisos_30d, COALESCE(sum(personas), 0)::int AS personas_30d
          FROM reportes_salud WHERE creado_en > now() - interval '30 days'`
-      ),
-      pool.query(
-        `SELECT recurso, accion,
+    ),
+    pool.query(
+      `SELECT recurso, accion,
                 count(*) FILTER (WHERE creado_en > now() - interval '30 days')::int AS ultimos_30d,
                 count(*)::int AS total
          FROM uso_contenido GROUP BY recurso, accion`
-      ),
-    ]);
+    ),
+    // Sexo y edad son opcionales en el perfil: solo se cuentan quienes los dieron.
+    pool.query(
+      `SELECT count(*) FILTER (WHERE sexo = 'mujer')::int AS mujeres,
+                count(*) FILTER (WHERE sexo IN ('mujer', 'hombre', 'otro'))::int AS con_sexo,
+                count(*) FILTER (WHERE anio_nacimiento IS NOT NULL
+                                   AND EXTRACT(YEAR FROM now()) - anio_nacimiento >= 60)::int AS mayores_60,
+                count(*) FILTER (WHERE anio_nacimiento IS NOT NULL)::int AS con_edad
+         FROM usuarios WHERE activo = true`
+    ),
+    pool.query(
+      `SELECT count(*)::int AS avisos_30d,
+                count(*) FILTER (WHERE tipo = 'sin_agua')::int AS sin_agua_30d
+         FROM reportes_agua WHERE creado_en > now() - interval '30 days'`
+    ),
+  ]);
 
-    res.json(
-      construirIndicadoresODS({
-        alertasRojas: alertasRojas.rows.map((r) => ({
-          minutos_desde_prealerta:
-            r.minutos_desde_prealerta === null ? null : Number(r.minutos_desde_prealerta),
-        })),
-        eventosPorEstado: eventosPorEstado.rows,
-        cobertura: {
-          telegram: telegram.rows[0].cantidad,
-          push: push.rows[0].cantidad,
-          sms: sms.rows[0].cantidad,
-        },
-        albergues: albergues.rows[0],
-        sos: {
-          total: sos.rows[0].total,
-          atendidos: sos.rows[0].atendidos,
-          mediana_minutos: sos.rows[0].mediana_minutos === null ? null : Number(sos.rows[0].mediana_minutos),
-        },
-        red: {
-          sensores_activos: sensoresActivos.rows[0].cantidad,
-          caidas_30d: caidas.rows[0].caidas,
-          horas_caida_30d: Number(caidas.rows[0].horas),
-        },
-        reportes: reportes.rows[0],
-        polizasVigentes: polizas.rows[0].cantidad,
-        avisosLluvia: avisosLluvia.rows[0].cantidad,
-        chequeosSeguridad: chequeos.rows[0].cantidad,
-        apoyo: apoyo.rows[0],
-        avisosSalud: avisosSalud.rows[0],
-        usoContenido: usoContenido.rows,
-      })
-    );
+  return construirIndicadoresODS({
+    alertasRojas: alertasRojas.rows.map((r) => ({
+      minutos_desde_prealerta: r.minutos_desde_prealerta === null ? null : Number(r.minutos_desde_prealerta),
+    })),
+    eventosPorEstado: eventosPorEstado.rows,
+    cobertura: {
+      telegram: telegram.rows[0].cantidad,
+      push: push.rows[0].cantidad,
+      sms: sms.rows[0].cantidad,
+    },
+    albergues: albergues.rows[0],
+    sos: {
+      total: sos.rows[0].total,
+      atendidos: sos.rows[0].atendidos,
+      mediana_minutos: sos.rows[0].mediana_minutos === null ? null : Number(sos.rows[0].mediana_minutos),
+    },
+    red: {
+      sensores_activos: sensoresActivos.rows[0].cantidad,
+      caidas_30d: caidas.rows[0].caidas,
+      horas_caida_30d: Number(caidas.rows[0].horas),
+    },
+    reportes: reportes.rows[0],
+    polizasVigentes: polizas.rows[0].cantidad,
+    avisosLluvia: avisosLluvia.rows[0].cantidad,
+    chequeosSeguridad: chequeos.rows[0].cantidad,
+    apoyo: apoyo.rows[0],
+    avisosSalud: avisosSalud.rows[0],
+    usoContenido: usoContenido.rows,
+    demografia: demografia.rows[0],
+    avisosAgua: avisosAgua.rows[0],
+  });
+}
+
+router.get("/ods", requerirSesion, requerirRol("administrador", "defensa_civil"), async (_req, res, next) => {
+  try {
+    res.json(await consultarIndicadoresODS());
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Versión PÚBLICA de los indicadores (página "Nuestro impacto", ODS 16.10):
+// solo cifras agregadas, ningún dato de personas. Se guarda 5 minutos en
+// memoria para que muchas visitas no repitan las ~18 consultas cada vez.
+const VIGENCIA_PUBLICO_MS = 5 * 60_000;
+let cachePublico = null;
+
+router.get("/publico", async (_req, res, next) => {
+  try {
+    if (!cachePublico || Date.now() - cachePublico.guardadoEn > VIGENCIA_PUBLICO_MS) {
+      cachePublico = { guardadoEn: Date.now(), datos: await consultarIndicadoresODS() };
+    }
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(cachePublico.datos);
   } catch (err) {
     next(err);
   }
