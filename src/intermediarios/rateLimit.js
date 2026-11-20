@@ -49,6 +49,7 @@ export const limitadorDni = crearLimitador(10 * 60 * 1000, 20);
 // usuario a propósito con solo su correo).
 export const limitadorLogin = crearLimitador(15 * 60 * 1000, 10);
 
-// Buscar direcciones en el mapa: cada búsqueda consulta Nominatim
-// (OpenStreetMap), que pide no abusar de su servicio gratuito.
-export const limitadorGeocodificar = crearLimitador(10 * 60 * 1000, 30);
+// Buscar direcciones en el mapa, con sugerencias mientras se escribe: cada
+// búsqueda consulta Photon (OpenStreetMap), un servicio gratuito que pide
+// uso razonable. El frontend espera a que la persona deje de escribir.
+export const limitadorGeocodificar = crearLimitador(10 * 60 * 1000, 150);

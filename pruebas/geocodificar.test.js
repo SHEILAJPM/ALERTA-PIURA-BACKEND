@@ -7,23 +7,28 @@ import {
   ZONA_PIURA,
 } from "../src/servicios/geocodificar.js";
 
+const feature = (properties, lon, lat) => ({ properties, geometry: { coordinates: [lon, lat] } });
+
 test("normalizarConsulta recorta espacios y largo", () => {
   assert.equal(normalizarConsulta("  Av.   Grau  450 "), "Av. Grau 450");
   assert.equal(normalizarConsulta("x".repeat(200)).length, 120);
   assert.equal(normalizarConsulta(undefined), "");
 });
 
-test("resumirResultados deja nombre corto y coordenadas con 5 decimales", () => {
-  const r = resumirResultados([
-    {
-      display_name: "Avenida Grau, Piura, Provincia de Piura, Piura, Perú",
-      lat: "-5.1945123",
-      lon: "-80.6327891",
-    },
-    { display_name: "", lat: "1", lon: "2" },
-    { display_name: "Sin coordenadas", lat: "x", lon: "y" },
+test("resumirResultados arma nombres legibles, redondea y quita repetidos", () => {
+  const r = resumirResultados({
+    features: [
+      feature({ name: "Avenida Grau", locality: "Talarita", district: "Castilla" }, -80.6201379, -5.1999556),
+      feature({ name: "Avenida Grau", locality: "Talarita", district: "Castilla" }, -80.62, -5.2),
+      feature({ street: "Calle Lima", housenumber: "450", city: "Piura" }, -80.63, -5.19),
+      feature({ name: "Sin coordenadas" }, "x", "y"),
+      feature({}, -80.6, -5.2),
+    ],
+  });
+  assert.deepEqual(r, [
+    { nombre: "Avenida Grau, Talarita, Castilla", lat: -5.19996, lon: -80.62014 },
+    { nombre: "Calle Lima 450, Piura", lat: -5.19, lon: -80.63 },
   ]);
-  assert.deepEqual(r, [{ nombre: "Avenida Grau, Piura, Provincia de Piura", lat: -5.19451, lon: -80.63279 }]);
   assert.deepEqual(resumirResultados(null), []);
 });
 
@@ -37,7 +42,7 @@ test("geocodificar limita la búsqueda a Piura, se identifica y guarda en caché
     cabeceras = opciones.headers;
     return {
       ok: true,
-      json: async () => [{ display_name: "Plaza de Armas, Piura", lat: "-5.197", lon: "-80.626" }],
+      json: async () => ({ features: [feature({ name: "Plaza de Armas", city: "Piura" }, -80.626, -5.197)] }),
     };
   };
   const primera = await geocodificar("Plaza de Armas prueba-cache", { fetchImpl: fetchFalso });
@@ -45,10 +50,9 @@ test("geocodificar limita la búsqueda a Piura, se identifica y guarda en caché
   assert.deepEqual(primera, [{ nombre: "Plaza de Armas, Piura", lat: -5.197, lon: -80.626 }]);
   assert.deepEqual(segunda, primera);
   assert.equal(llamadas, 1);
-  assert.equal(urlPedida.searchParams.get("bounded"), "1");
   assert.equal(
-    urlPedida.searchParams.get("viewbox"),
-    `${ZONA_PIURA.oeste},${ZONA_PIURA.norte},${ZONA_PIURA.este},${ZONA_PIURA.sur}`
+    urlPedida.searchParams.get("bbox"),
+    `${ZONA_PIURA.oeste},${ZONA_PIURA.sur},${ZONA_PIURA.este},${ZONA_PIURA.norte}`
   );
   assert.match(cabeceras["User-Agent"], /^PiuraAlerta\//);
 });
