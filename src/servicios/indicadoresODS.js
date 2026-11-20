@@ -65,9 +65,15 @@ export function construirIndicadoresODS({
   chequeosSeguridad = 0,
   apoyo = {},
   avisosSalud = {},
+  usoContenido = [],
   ahora = new Date(),
 }) {
   const anticipacion = resumirAnticipacion(alertasRojas);
+  // Uso anónimo de contenidos educativos (ODS 2.4 y 4.7), una vez por sesión.
+  const uso = (recurso, accion) => {
+    const fila = usoContenido.find((u) => u.recurso === recurso && u.accion === accion);
+    return { ultimos_30d: fila?.ultimos_30d ?? 0, total: fila?.total ?? 0 };
+  };
   const eventos = Object.fromEntries(eventosPorEstado.map((e) => [e.estado_nuevo, e.cantidad]));
   const suscripciones = (cobertura.telegram ?? 0) + (cobertura.push ?? 0) + (cobertura.sms ?? 0);
 
@@ -251,6 +257,40 @@ export function construirIndicadoresODS({
             meta: "1.5",
             ayuda: "Pólizas vigentes: protección económica ante la pérdida por desastres.",
           }),
+        ],
+      },
+      {
+        numero: 2,
+        titulo: "Hambre cero",
+        indicadores: [
+          indicador(
+            "consultas_agricultura",
+            "Consultas de recomendaciones para agricultores (30 días)",
+            uso("agricultura", "visita").ultimos_30d,
+            {
+              meta: "2.4",
+              ayuda: `Personas que revisaron qué hacer con su chacra y sus animales ante lluvias y desbordes. Desde el inicio: ${
+                uso("agricultura", "visita").total
+              }.`,
+            }
+          ),
+        ],
+      },
+      {
+        numero: 4,
+        titulo: "Educación de calidad",
+        indicadores: [
+          indicador(
+            "sesiones_laboratorio",
+            "Sesiones del Laboratorio de simulación (30 días)",
+            uso("laboratorio", "visita").ultimos_30d,
+            {
+              meta: "4.7",
+              ayuda: `Personas que exploraron cómo una lluvia se convierte en crecida; ${
+                uso("laboratorio", "simulacion").ultimos_30d
+              } reprodujeron o crearon un escenario. Desde el inicio: ${uso("laboratorio", "visita").total} sesiones.`,
+            }
+          ),
         ],
       },
       {

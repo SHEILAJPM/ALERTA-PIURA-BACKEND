@@ -563,3 +563,19 @@ CREATE TABLE IF NOT EXISTS reportes_salud (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reportes_salud_creado ON reportes_salud (creado_en DESC);
+
+-- ============================================================
+-- 8. Uso de contenidos educativos (ODS 2.4 y 4.7)
+-- ============================================================
+
+-- Conteo ANÓNIMO de uso: solo qué contenido y cuándo (sin usuario, sin IP,
+-- sin ubicación). El navegador lo registra una vez por sesión, así una
+-- persona que recarga la página no infla la cifra. Ver rutas/uso.routes.js.
+CREATE TABLE IF NOT EXISTS uso_contenido (
+  id BIGSERIAL PRIMARY KEY,
+  recurso VARCHAR(20) NOT NULL CHECK (recurso IN ('agricultura', 'laboratorio')),
+  accion VARCHAR(20) NOT NULL CHECK (accion IN ('visita', 'simulacion')),
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_uso_contenido_creado ON uso_contenido (creado_en DESC);

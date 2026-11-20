@@ -352,3 +352,11 @@ export const reporteSaludSchema = z
     lat,
   })
   .strict(); // nada de campos extra: el aviso no debe llevar datos personales
+
+// Conteo anónimo de uso de contenidos (ver uso_contenido en bd/schema.sql).
+export const usoContenidoSchema = z
+  .object({
+    recurso: z.enum(["agricultura", "laboratorio"]),
+    accion: z.enum(["visita", "simulacion"]),
+  })
+  .strict();

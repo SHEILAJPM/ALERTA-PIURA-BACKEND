@@ -64,7 +64,7 @@ test("construirIndicadoresODS: agrupa por ODS con meta y marca los de Sendai", (
   });
   assert.deepEqual(
     r.ods.map((o) => o.numero),
-    [11, 13, 9, 10, 3, 1, 17]
+    [11, 13, 9, 10, 3, 1, 2, 4, 17]
   );
   assert.equal(r.generado_en, "2026-11-19T12:00:00.000Z");
   const anticipacion = buscar(r, "anticipacion_mediana");
@@ -106,4 +106,28 @@ test("construirIndicadoresODS: cuenta las personas con síntomas avisadas en 30 
   assert.equal(ind.valor, 11);
   assert.equal(ind.meta, "3.3");
   assert.match(ind.ayuda, /4 avisos/);
+});
+
+test("construirIndicadoresODS: cuenta el uso de recomendaciones agrícolas (ODS 2.4) y del Laboratorio (ODS 4.7)", () => {
+  const r = construirIndicadoresODS({
+    usoContenido: [
+      { recurso: "agricultura", accion: "visita", ultimos_30d: 12, total: 40 },
+      { recurso: "laboratorio", accion: "visita", ultimos_30d: 7, total: 20 },
+      { recurso: "laboratorio", accion: "simulacion", ultimos_30d: 5, total: 9 },
+    ],
+  });
+  const agro = buscar(r, "consultas_agricultura");
+  assert.equal(agro.valor, 12);
+  assert.equal(agro.meta, "2.4");
+  assert.match(agro.ayuda, /Desde el inicio: 40/);
+  const lab = buscar(r, "sesiones_laboratorio");
+  assert.equal(lab.valor, 7);
+  assert.equal(lab.meta, "4.7");
+  assert.match(lab.ayuda, /5 reprodujeron/);
+});
+
+test("construirIndicadoresODS: sin uso registrado, los indicadores de ODS 2 y 4 quedan en 0", () => {
+  const r = construirIndicadoresODS({});
+  assert.equal(buscar(r, "consultas_agricultura").valor, 0);
+  assert.equal(buscar(r, "sesiones_laboratorio").valor, 0);
 });

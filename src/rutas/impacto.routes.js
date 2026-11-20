@@ -74,6 +74,7 @@ router.get("/ods", requerirSesion, requerirRol("administrador", "defensa_civil")
       chequeos,
       apoyo,
       avisosSalud,
+      usoContenido,
     ] = await Promise.all([
       // Para cada alerta roja: el evento inmediatamente anterior del mismo
       // sensor. Si fue una prealerta, la diferencia es el tiempo de anticipación.
@@ -143,6 +144,12 @@ router.get("/ods", requerirSesion, requerirRol("administrador", "defensa_civil")
         `SELECT count(*)::int AS avisos_30d, COALESCE(sum(personas), 0)::int AS personas_30d
          FROM reportes_salud WHERE creado_en > now() - interval '30 days'`
       ),
+      pool.query(
+        `SELECT recurso, accion,
+                count(*) FILTER (WHERE creado_en > now() - interval '30 days')::int AS ultimos_30d,
+                count(*)::int AS total
+         FROM uso_contenido GROUP BY recurso, accion`
+      ),
     ]);
 
     res.json(
@@ -174,6 +181,7 @@ router.get("/ods", requerirSesion, requerirRol("administrador", "defensa_civil")
         chequeosSeguridad: chequeos.rows[0].cantidad,
         apoyo: apoyo.rows[0],
         avisosSalud: avisosSalud.rows[0],
+        usoContenido: usoContenido.rows,
       })
     );
   } catch (err) {

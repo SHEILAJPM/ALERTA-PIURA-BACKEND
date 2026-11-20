@@ -29,6 +29,7 @@ import dniRouter from "./rutas/dni.routes.js";
 import simulacroRouter from "./rutas/simulacro.routes.js";
 import datosAbiertosRouter from "./rutas/datosAbiertos.routes.js";
 import saludRouter from "./rutas/salud.routes.js";
+import usoRouter from "./rutas/uso.routes.js";
 import { manejadorErrores } from "./intermediarios/errorHandler.js";
 import { limitadorGeneral } from "./intermediarios/rateLimit.js";
 
@@ -117,6 +118,7 @@ app.use("/api/dni", dniRouter);
 app.use("/api/simulacro", simulacroRouter);
 app.use("/api/datos-abiertos", datosAbiertosRouter);
 app.use("/api/salud", saludRouter);
+app.use("/api/uso", usoRouter);
 
 // Sin esto Express responde un HTML "Cannot GET ..." y el frontend, que
 // siempre espera { error }, no puede mostrar el mensaje.
