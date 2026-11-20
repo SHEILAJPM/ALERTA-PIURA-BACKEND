@@ -333,3 +333,22 @@ export const datosAbiertosLecturasSchema = z.object({
   agregacion: z.enum(["crudo", "5min", "15min", "1h", "1d"]).default("15min"),
   formato: z.enum(["csv", "json"]).default("json"),
 });
+
+// Aviso anónimo de enfermedad en la zona (ver reportes_salud en bd/schema.sql).
+export const ENFERMEDADES_REPORTABLES = [
+  "fiebre_dengue",
+  "diarrea",
+  "piel",
+  "respiratoria",
+  "leptospirosis",
+  "otra",
+];
+
+export const reporteSaludSchema = z
+  .object({
+    enfermedad: z.enum(ENFERMEDADES_REPORTABLES),
+    personas: z.number().int().min(1).max(20).default(1),
+    lon,
+    lat,
+  })
+  .strict(); // nada de campos extra: el aviso no debe llevar datos personales

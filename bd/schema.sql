@@ -543,3 +543,23 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_reportes_categoria_creado
   ON reportes_ciudadanos (categoria, creado_en DESC);
+
+-- ============================================================
+-- 7. Avisos de enfermedad en la zona (ODS 3.3, vigilancia comunitaria)
+-- ============================================================
+
+-- Aviso ANÓNIMO de casos de enfermedad después del fenómeno: sin usuario, sin
+-- nombre, sin texto libre ni foto. La ubicación llega redondeada a unos 500 m
+-- (ver servicios/reportesSalud.js) para mostrar dónde aumentan los casos sin
+-- identificar viviendas. El resumen solo lo ven Defensa Civil y administradores.
+CREATE TABLE IF NOT EXISTS reportes_salud (
+  id BIGSERIAL PRIMARY KEY,
+  enfermedad VARCHAR(30) NOT NULL CHECK (enfermedad IN (
+    'fiebre_dengue', 'diarrea', 'piel', 'respiratoria', 'leptospirosis', 'otra'
+  )),
+  personas SMALLINT NOT NULL DEFAULT 1 CHECK (personas BETWEEN 1 AND 20),
+  ubicacion GEOMETRY(Point, 4326) NOT NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reportes_salud_creado ON reportes_salud (creado_en DESC);
