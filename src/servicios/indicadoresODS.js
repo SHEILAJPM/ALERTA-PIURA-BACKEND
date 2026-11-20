@@ -64,6 +64,7 @@ export function construirIndicadoresODS({
   avisosLluvia = 0,
   chequeosSeguridad = 0,
   apoyo = {},
+  avisosSalud = {},
   ahora = new Date(),
 }) {
   const anticipacion = resumirAnticipacion(alertasRojas);
@@ -218,6 +219,17 @@ export function construirIndicadoresODS({
         numero: 3,
         titulo: "Salud y bienestar",
         indicadores: [
+          indicador(
+            "personas_con_sintomas",
+            "Personas con síntomas avisadas (30 días)",
+            avisosSalud.personas_30d ?? 0,
+            {
+              meta: "3.3",
+              ayuda: `Avisos anónimos de vecinos sobre casos de dengue, diarrea, leptospirosis y otras enfermedades tras el fenómeno: ${
+                avisosSalud.avisos_30d ?? 0
+              } avisos en 30 días.`,
+            }
+          ),
           indicador(
             "focos_agua_estancada",
             "Focos de agua estancada reportados",

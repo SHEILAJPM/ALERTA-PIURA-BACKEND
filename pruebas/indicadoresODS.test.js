@@ -99,3 +99,11 @@ test("construirIndicadoresODS: sin datos, los porcentajes quedan en null y los c
   assert.equal(buscar(r, "sos_recibidos").valor, 0);
   assert.equal(buscar(r, "personas_con_apoyo").valor, 0);
 });
+
+test("construirIndicadoresODS: cuenta las personas con síntomas avisadas en 30 días (ODS 3.3)", () => {
+  const r = construirIndicadoresODS({ avisosSalud: { avisos_30d: 4, personas_30d: 11 } });
+  const ind = buscar(r, "personas_con_sintomas");
+  assert.equal(ind.valor, 11);
+  assert.equal(ind.meta, "3.3");
+  assert.match(ind.ayuda, /4 avisos/);
+});
