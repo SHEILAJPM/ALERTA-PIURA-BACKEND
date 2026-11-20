@@ -168,7 +168,7 @@ router.get("/yo", requerirSesion, async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, nombre, dni, telefono, direccion, correo, rol, recibir_alertas_sms,
-              sensor_interes_id, correo_verificado, creado_en
+              sensor_interes_id, correo_verificado, creado_en, apoyo_evacuacion, apoyo_consentido_en
        FROM usuarios WHERE id = $1`,
       [req.usuario.id]
     );
@@ -181,7 +181,8 @@ router.get("/yo", requerirSesion, async (req, res, next) => {
   }
 });
 
-// Solo nombre/teléfono/dirección/opt-in de SMS/sensor de interés — no correo
+// Solo nombre/teléfono/dirección/opt-in de SMS/sensor de interés/apoyo para
+// evacuar — no correo
 // (es el identificador de login) ni DNI (dato sensible que se pide una sola
 // vez, ver registro).
 router.patch("/yo", requerirSesion, validarBody(perfilSchema), async (req, res, next) => {
@@ -193,6 +194,10 @@ router.patch("/yo", requerirSesion, validarBody(perfilSchema), async (req, res, 
     // nivel SQL, por eso se maneja aparte con el CASE WHEN de abajo.
     const tocaSensorInteres = "sensor_interes_id" in req.body;
     const sensorInteres = req.body.sensor_interes_id ?? null;
+    // Registro voluntario de apoyo para evacuar: si viene, reemplaza la lista
+    // completa (sin repetidos). Lista vacía = retira el consentimiento.
+    const tocaApoyo = Array.isArray(req.body.apoyo_evacuacion);
+    const apoyo = tocaApoyo ? [...new Set(req.body.apoyo_evacuacion)] : [];
 
     if (recibirSMS === true) {
       // No se puede activar el opt-in sin un teléfono al que mandar el SMS
@@ -211,10 +216,16 @@ router.patch("/yo", requerirSesion, validarBody(perfilSchema), async (req, res, 
            telefono = COALESCE($3, telefono),
            direccion = COALESCE($4, direccion),
            recibir_alertas_sms = COALESCE($5, recibir_alertas_sms),
-           sensor_interes_id = CASE WHEN $6 THEN $7::uuid ELSE sensor_interes_id END
+           sensor_interes_id = CASE WHEN $6 THEN $7::uuid ELSE sensor_interes_id END,
+           apoyo_evacuacion = CASE WHEN $8 THEN $9::text[] ELSE apoyo_evacuacion END,
+           apoyo_consentido_en = CASE
+             WHEN NOT $8 THEN apoyo_consentido_en
+             WHEN cardinality($9::text[]) = 0 THEN NULL
+             ELSE now()
+           END
        WHERE id = $1
        RETURNING id, nombre, dni, telefono, direccion, correo, rol, recibir_alertas_sms,
-                 sensor_interes_id, correo_verificado, creado_en`,
+                 sensor_interes_id, correo_verificado, creado_en, apoyo_evacuacion, apoyo_consentido_en`,
       [
         req.usuario.id,
         nombre ?? null,
@@ -223,6 +234,8 @@ router.patch("/yo", requerirSesion, validarBody(perfilSchema), async (req, res, 
         recibirSMS ?? null,
         tocaSensorInteres,
         sensorInteres,
+        tocaApoyo,
+        apoyo,
       ]
     );
     res.json(rows[0]);

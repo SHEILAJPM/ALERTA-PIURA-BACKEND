@@ -84,7 +84,7 @@ router.post(
   validarBody(reporteSchema),
   async (req, res, next) => {
     try {
-      const { autor_nombre: autorNombre, descripcion, foto_url: fotoUrl, lon, lat } = req.body;
+      const { autor_nombre: autorNombre, descripcion, foto_url: fotoUrl, lon, lat, categoria } = req.body;
       const usuarioId = req.usuario?.id ?? null;
       const nombreMostrado = req.usuario?.nombre ?? autorNombre ?? "Anónimo";
 
@@ -110,16 +110,18 @@ router.post(
         archivadoPorIA ? "descartado" : "pendiente",
         analisis?.veredicto ?? null,
         analisis?.puntaje ?? null,
-        analisis ? JSON.stringify({ imagen: analisis.imagen, descripcion: analisis.descripcion }) : null
+        analisis ? JSON.stringify({ imagen: analisis.imagen, descripcion: analisis.descripcion }) : null,
+        categoria ?? null
       );
       const p = (n) => `$${base + n}`;
 
       const { rows } = await pool.query(
         `INSERT INTO reportes_ciudadanos (usuario_id, autor_nombre, descripcion, foto_url, ubicacion,
-                                          posible_spam, motivo_ia, estado, veredicto_ia, puntaje_ia, detalle_ia)
-       VALUES ($1, $2, $3, $4, ${ubicacionSql}, ${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)})
+                                          posible_spam, motivo_ia, estado, veredicto_ia, puntaje_ia, detalle_ia,
+                                          categoria)
+       VALUES ($1, $2, $3, $4, ${ubicacionSql}, ${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)})
        RETURNING id, descripcion, foto_url, estado, likes_count, confirmaciones_count, creado_en,
-                 posible_spam, motivo_ia, veredicto_ia, puntaje_ia, detalle_ia`,
+                 posible_spam, motivo_ia, veredicto_ia, puntaje_ia, detalle_ia, categoria`,
         params
       );
 

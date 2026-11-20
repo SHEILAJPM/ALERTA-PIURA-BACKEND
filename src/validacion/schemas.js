@@ -5,6 +5,30 @@ import { z } from "zod";
 const lon = z.number().finite().gte(-180).lte(180);
 const lat = z.number().finite().gte(-90).lte(90);
 
+// Categorías del reporte ciudadano (mismo listado que el CHECK de
+// reportes_ciudadanos.categoria en bd/schema.sql).
+export const CATEGORIAS_REPORTE = [
+  "calle_inundada",
+  "desborde",
+  "lluvia",
+  "dano_vivienda",
+  "personas_riesgo",
+  "agua_estancada",
+  "otro",
+];
+
+// Tipos de apoyo para evacuar que una persona puede registrar en su perfil
+// (voluntario, ver usuarios.apoyo_evacuacion en bd/schema.sql).
+export const TIPOS_APOYO_EVACUACION = [
+  "adulto_mayor",
+  "movilidad_reducida",
+  "discapacidad_visual",
+  "discapacidad_auditiva",
+  "gestante",
+  "ninos_pequenos",
+  "enfermedad_cronica",
+];
+
 export const lecturaSchema = z.object({
   sensor_codigo: z.string().trim().min(1).max(50).optional(),
   // 2000cm (20m) es un techo generoso para descartar valores absurdos/erróneos
@@ -33,6 +57,7 @@ export const reporteSchema = z
     foto_url: z.string().trim().url().max(2000),
     lon: lon.optional(),
     lat: lat.optional(),
+    categoria: z.enum(CATEGORIAS_REPORTE).optional(),
   })
   .refine((datos) => (datos.lon === undefined) === (datos.lat === undefined), {
     message: "lon y lat deben enviarse juntos",
@@ -82,6 +107,8 @@ export const perfilSchema = z
     // null = "todos los sensores" (quita el filtro); un uuid = solo ese
     // sensor. Ver el manejo especial en PATCH /api/auth/yo.
     sensor_interes_id: z.string().uuid().nullable().optional(),
+    // [] = retirar el consentimiento y borrar lo registrado.
+    apoyo_evacuacion: z.array(z.enum(TIPOS_APOYO_EVACUACION)).max(TIPOS_APOYO_EVACUACION.length).optional(),
   })
   .refine((datos) => Object.values(datos).some((v) => v !== undefined), {
     message: "Nada para actualizar",
@@ -294,4 +321,15 @@ export const simulacroSchema = z.object({
   minutos: z.number().int().gte(1).lte(15).optional(),
   mensaje: z.string().trim().max(300).optional(),
   con_push: z.boolean().optional(),
+});
+
+// GET /api/datos-abiertos/lecturas. Sin desde/hasta: últimos 7 días. El
+// rango máximo depende de la agregación (ver datosAbiertos.routes.js), para
+// que una sola descarga no pueda pedir millones de filas crudas.
+export const datosAbiertosLecturasSchema = z.object({
+  sensor: z.string().trim().min(1).max(50),
+  desde: z.coerce.date().optional(),
+  hasta: z.coerce.date().optional(),
+  agregacion: z.enum(["crudo", "5min", "15min", "1h", "1d"]).default("15min"),
+  formato: z.enum(["csv", "json"]).default("json"),
 });

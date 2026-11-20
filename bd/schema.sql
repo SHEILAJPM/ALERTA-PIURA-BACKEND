@@ -513,3 +513,33 @@ CREATE TABLE IF NOT EXISTS caidas_sensor (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_caidas_sensor_abierta
   ON caidas_sensor (sensor_id) WHERE hasta IS NULL;
+
+-- ============================================================
+-- 6. ODS: inclusión (10.2 / 11.5), salud (3.3) y datos abiertos (17.18)
+-- ============================================================
+
+-- Registro VOLUNTARIO de quien necesita apoyo para evacuar (adulto mayor,
+-- movilidad reducida, gestante...). Lo marca la propia persona desde su
+-- perfil, con consentimiento explícito (apoyo_consentido_en = cuándo lo dio;
+-- NULL si nunca lo dio o lo retiró). Solo se usa para que Despacho priorice
+-- el SOS de esa persona; nunca se expone en listados públicos. Ver PATCH
+-- /api/auth/yo y GET /api/sos.
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS apoyo_evacuacion TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS apoyo_consentido_en TIMESTAMPTZ;
+
+-- Categoría opcional del reporte ciudadano (la elige quien reporta en el
+-- primer paso del formulario). Reportes viejos quedan en NULL. Permite contar,
+-- por ejemplo, los focos de agua estancada (criaderos de zancudo del dengue)
+-- después de una inundación.
+ALTER TABLE reportes_ciudadanos ADD COLUMN IF NOT EXISTS categoria VARCHAR(30);
+DO $$ BEGIN
+  ALTER TABLE reportes_ciudadanos ADD CONSTRAINT reportes_ciudadanos_categoria_check
+    CHECK (categoria IS NULL OR categoria IN (
+      'calle_inundada', 'desborde', 'lluvia', 'dano_vivienda',
+      'personas_riesgo', 'agua_estancada', 'otro'
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_reportes_categoria_creado
+  ON reportes_ciudadanos (categoria, creado_en DESC);

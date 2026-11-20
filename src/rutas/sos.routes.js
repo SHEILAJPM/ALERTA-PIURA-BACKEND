@@ -22,21 +22,24 @@ router.post("/", autenticacionOpcional, limitadorSOS, validarBody(sosSchema), as
     const usuarioId = req.usuario?.id ?? null;
     let nombreMostrado = nombreContacto ?? null;
     let telefonoMostrado = telefonoContacto ?? null;
+    let apoyoEvacuacion = [];
     if (usuarioId) {
       // El JWT no trae teléfono (se emite liviano a propósito, ver
       // generarToken en servicios/auth.js) -- sin esto, telefono_contacto
       // quedaba siempre vacío para cualquier envío con sesión, sin importar
       // lo que la cuenta tuviera guardado. Los datos de la cuenta pisan lo
       // que haya venido en el body: son más confiables que texto libre.
-      const { rows: perfilRows } = await pool.query("SELECT nombre, telefono FROM usuarios WHERE id = $1", [
-        usuarioId,
-      ]);
+      const { rows: perfilRows } = await pool.query(
+        "SELECT nombre, telefono, apoyo_evacuacion FROM usuarios WHERE id = $1",
+        [usuarioId]
+      );
       // || (no ??): perfilSchema no exige mínimo de largo para teléfono
       // (ver validacion/schemas.js), así que una cuenta con telefono = ''
       // guardado no debería pisar un telefono_contacto real que sí vino en
       // el body -- '' es tan "sin dato" como null acá.
       nombreMostrado = perfilRows[0]?.nombre || nombreMostrado;
       telefonoMostrado = perfilRows[0]?.telefono || telefonoMostrado;
+      apoyoEvacuacion = perfilRows[0]?.apoyo_evacuacion ?? [];
     }
 
     const { rows } = await pool.query(
@@ -52,7 +55,9 @@ router.post("/", autenticacionOpcional, limitadorSOS, validarBody(sosSchema), as
       telefono_contacto: telefonoMostrado,
       ubicacion: { type: "Point", coordinates: [lon, lat] },
     };
-    transmitirRestringido("alerta_sos", alerta, ROLES_SOS);
+    // El apoyo para evacuar (registro voluntario) va solo a Despacho, para
+    // priorizar; no hace falta devolverlo a quien envió el SOS.
+    transmitirRestringido("alerta_sos", { ...alerta, apoyo_evacuacion: apoyoEvacuacion }, ROLES_SOS);
     res.status(201).json(alerta);
   } catch (err) {
     next(err);
@@ -66,11 +71,16 @@ router.get("/", requerirSesion, requerirRol(...ROLES_SOS), async (req, res, next
   try {
     const soloPendientes = req.query.incluirAtendidas !== "true";
     const { rows } = await pool.query(
-      `SELECT id, nombre_contacto, telefono_contacto, estado, creado_en, atendido_en,
-              ST_AsGeoJSON(ubicacion)::json AS ubicacion
-       FROM alertas_sos
-       WHERE $1 = false OR estado = 'pendiente'
-       ORDER BY creado_en DESC`,
+      // apoyo_evacuacion: lo que la persona registró voluntariamente en su
+      // perfil (adulto mayor, gestante...), para que Despacho priorice. Un
+      // SOS anónimo (sin cuenta) siempre trae lista vacía.
+      `SELECT s.id, s.nombre_contacto, s.telefono_contacto, s.estado, s.creado_en, s.atendido_en,
+              ST_AsGeoJSON(s.ubicacion)::json AS ubicacion,
+              COALESCE(u.apoyo_evacuacion, '{}') AS apoyo_evacuacion
+       FROM alertas_sos s
+       LEFT JOIN usuarios u ON u.id = s.usuario_id
+       WHERE $1 = false OR s.estado = 'pendiente'
+       ORDER BY s.creado_en DESC`,
       [soloPendientes]
     );
     res.json(rows);
