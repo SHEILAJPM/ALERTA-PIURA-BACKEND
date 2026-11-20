@@ -31,6 +31,7 @@ import datosAbiertosRouter from "./rutas/datosAbiertos.routes.js";
 import saludRouter from "./rutas/salud.routes.js";
 import usoRouter from "./rutas/uso.routes.js";
 import aguaRouter from "./rutas/agua.routes.js";
+import geocodificarRouter from "./rutas/geocodificar.routes.js";
 import { manejadorErrores } from "./intermediarios/errorHandler.js";
 import { limitadorGeneral } from "./intermediarios/rateLimit.js";
 
@@ -121,6 +122,7 @@ app.use("/api/datos-abiertos", datosAbiertosRouter);
 app.use("/api/salud", saludRouter);
 app.use("/api/uso", usoRouter);
 app.use("/api/agua", aguaRouter);
+app.use("/api/geocodificar", geocodificarRouter);
 
 // Sin esto Express responde un HTML "Cannot GET ..." y el frontend, que
 // siempre espera { error }, no puede mostrar el mensaje.

@@ -48,3 +48,7 @@ export const limitadorDni = crearLimitador(10 * 60 * 1000, 20);
 // de un bloqueo por cuenta (que además abriría la puerta a bloquear a otro
 // usuario a propósito con solo su correo).
 export const limitadorLogin = crearLimitador(15 * 60 * 1000, 10);
+
+// Buscar direcciones en el mapa: cada búsqueda consulta Nominatim
+// (OpenStreetMap), que pide no abusar de su servicio gratuito.
+export const limitadorGeocodificar = crearLimitador(10 * 60 * 1000, 30);
